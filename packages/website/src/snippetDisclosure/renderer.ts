@@ -2,6 +2,7 @@ import { clsx } from 'clsx'
 import { HashMap, HashSet, Option, Predicate } from 'effect'
 import { Mount } from 'foldkit'
 import { type HtmlBuilder } from 'foldkit/html'
+import { twMerge } from 'tailwind-merge'
 
 import { Disclosure } from '@foldkit/ui'
 
@@ -38,8 +39,17 @@ export const renderer =
     renderCopyButton: CodeBlock.RenderCopyButton,
     h: HtmlBuilder<ParentMessage>,
   ): CodeBlock.RenderSnippet =>
-  ({ id, title, content, rawCode, copyAriaLabel, className }) => {
-    const isOpen = HashSet.has(model.openSnippetIds, id)
+  ({
+    id,
+    disclosureGroupId,
+    title,
+    content,
+    rawCode,
+    copyAriaLabel,
+    className,
+  }) => {
+    const disclosureId = disclosureGroupId ?? id
+    const isOpen = HashSet.has(model.openDisclosureIds, disclosureId)
     const isCollapsible = isMeasuredToOverflow(model, id, rawCode)
     const hasTitle = Predicate.isNotUndefined(title)
     const titleId = `${id}-title`
@@ -84,7 +94,7 @@ export const renderer =
       ...(hasTitle ? [h.DataAttribute('llm-label', title)] : []),
       ...(hasTitle ? [h.AriaLabelledBy(titleId)] : []),
       h.Class(
-        clsx(
+        twMerge(
           'code-surface relative mt-6 min-w-0 overflow-clip rounded-lg border border-gray-200 dark:border-gray-700/50',
           className,
         ),
@@ -105,7 +115,10 @@ export const renderer =
         isOpen,
         onToggle: nextIsOpen =>
           toParentMessage(
-            Message.ToggledSnippet({ snippetId: id, isOpen: nextIsOpen }),
+            Message.ToggledCodeDisclosure({
+              disclosureId,
+              isOpen: nextIsOpen,
+            }),
           ),
         toView: ({ button, panel, animatePanel }) =>
           shell(shellAttributes, [
