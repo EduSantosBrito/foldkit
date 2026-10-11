@@ -13,12 +13,12 @@ import {
   ScrollToTop,
   init,
   managedResources,
-  subscriptions,
   update,
 } from './main'
 import { Message } from './message'
 import { type Model } from './model'
 import { Home } from './page'
+import * as NotePlayerDemo from './page/home/notePlayerDemo'
 import * as Search from './search'
 import * as SnippetCopy from './snippetCopy'
 import * as SnippetDisclosure from './snippetDisclosure'
@@ -39,15 +39,8 @@ const flags = {
 
 const initAt = (url: Url.Url): Model => init(flags, url).model
 
-const aiHeadingSubscription = subscriptions.aiHeading
-
 const expectHomePresent = (model: Model): void => {
   expect(Option.isSome(model.maybeHome)).toBe(true)
-  expect(
-    Option.isSome(
-      aiHeadingSubscription.modelToDependencies(model).maybeDependencies,
-    ),
-  ).toBe(true)
   expect(
     Option.isSome(
       managedResources.audioContext.modelToMaybeRequirements(model),
@@ -59,20 +52,15 @@ const expectHomeAbsent = (model: Model): void => {
   expect(Option.isNone(model.maybeHome)).toBe(true)
   expect(
     Option.isNone(
-      aiHeadingSubscription.modelToDependencies(model).maybeDependencies,
-    ),
-  ).toBe(true)
-  expect(
-    Option.isNone(
       managedResources.audioContext.modelToMaybeRequirements(model),
     ),
   ).toBe(true)
 }
 
 const expectDefaultHome = (home: Home.Model): void => {
-  expect(home.aiHeadingToggleCount).toBe(0)
   expect(home.activeDemoTab).toBe('Architecture')
   expect(home.asyncCounterDemo.count).toBe(0)
+  expect(home.notePlayerDemo.noteInput.value).toBe('CDEFGABC')
   expect(home.notePlayerDemo.playbackState._tag).toBe('Idle')
 }
 
@@ -130,11 +118,15 @@ describe('application', () => {
       given(initAt(homeUrl)),
       message(
         Message.GotHomeMessage({
-          message: Home.Message.ToggledAiHeading(),
+          message: Home.Message.GotNotePlayerDemoMessage({
+            message: NotePlayerDemo.Message.ChangedNoteInput({ value: 'ABC' }),
+          }),
         }),
       ),
       model(model => {
-        expect(Option.getOrThrow(model.maybeHome).aiHeadingToggleCount).toBe(1)
+        expect(
+          Option.getOrThrow(model.maybeHome).notePlayerDemo.noteInput.value,
+        ).toBe('ABC')
       }),
       message(Message.ChangedUrl({ url: newsletterUrl })),
       ...resolvePathChangeCommands(),
@@ -153,7 +145,9 @@ describe('application', () => {
       given(initAt(newsletterUrl)),
       message(
         Message.GotHomeMessage({
-          message: Home.Message.ToggledAiHeading(),
+          message: Home.Message.GotNotePlayerDemoMessage({
+            message: NotePlayerDemo.Message.ChangedNoteInput({ value: 'ABC' }),
+          }),
         }),
       ),
       model(model => {

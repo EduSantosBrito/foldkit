@@ -1040,13 +1040,6 @@ export const LoadPlayground = Command.define('LoadPlayground', {
 
 // SUBSCRIPTION
 
-const homeSubscriptions = Subscription.lift(Home.subscriptions)<Model, Message>(
-  {
-    read: model => model.maybeHome,
-    toParentMessage: toGotHomeMessage,
-  },
-)
-
 const uiPagesSubscriptions = Subscription.lift(Ui.subscriptions)<
   Model,
   Message
@@ -1057,7 +1050,6 @@ const uiPagesSubscriptions = Subscription.lift(Ui.subscriptions)<
 
 export const subscriptions = Subscription.aggregate(
   Subscriptions.ActiveSection.subscriptions,
-  homeSubscriptions,
   uiPagesSubscriptions,
   Subscriptions.SearchShortcut.subscriptions,
   Subscriptions.SystemTheme.subscriptions,

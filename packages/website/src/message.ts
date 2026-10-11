@@ -6,6 +6,7 @@ import { Url } from 'foldkit/url'
 
 import { Dialog, Menu } from '@foldkit/ui'
 
+import { ResolvedTheme } from './colorScheme'
 import {
   ApiReference,
   ComingFromReact,
@@ -25,8 +26,7 @@ import * as SnippetDisclosure from './snippetDisclosure'
 export const ThemePreference = Schema.Literals(['Dark', 'Light', 'System'])
 export type ThemePreference = typeof ThemePreference.Type
 
-export const ResolvedTheme = Schema.Literals(['Dark', 'Light'])
-export type ResolvedTheme = typeof ResolvedTheme.Type
+export { ResolvedTheme } from './colorScheme'
 
 // MESSAGE
 

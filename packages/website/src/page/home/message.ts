@@ -9,7 +9,6 @@ import * as NotePlayerDemo from './notePlayerDemo'
 // MESSAGE
 
 export const Message = defineMessageUnion({
-  ToggledAiHeading: {},
   GotDemoTabsMessage: { message: Tabs.Message },
   GotPlaygroundMenuMessage: { message: Menu.Message },
   GotAsyncCounterDemoMessage: { message: AsyncCounterDemo.Message },

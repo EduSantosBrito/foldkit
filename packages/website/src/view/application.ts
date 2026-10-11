@@ -37,6 +37,8 @@ const homeView = (
       ),
       isNarrowViewport: model.isNarrowViewport,
       maybeGitHubStarCount: model.maybeGitHubStarCount,
+      resolvedTheme: model.resolvedTheme,
+      isBrowserEnvironmentLoaded: Option.isSome(model.maybeThemePreference),
     },
     toParentMessage: message => Message.GotHomeMessage({ message }),
   })

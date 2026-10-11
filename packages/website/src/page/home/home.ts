@@ -10,6 +10,7 @@ import {
 
 import { Menu } from '@foldkit/ui'
 
+import { type ResolvedTheme } from '../../colorScheme'
 import { type CodeBlock, Shared } from '../../component'
 import { Icon } from '../../icon'
 import {
@@ -172,6 +173,8 @@ type ViewInputs = Readonly<{
   renderSnippet: CodeBlock.RenderSnippet
   isNarrowViewport: boolean
   maybeGitHubStarCount: Option.Option<number>
+  resolvedTheme: ResolvedTheme
+  isBrowserEnvironmentLoaded: boolean
 }>
 
 // VIEW
@@ -250,8 +253,9 @@ export const view = Submodel.defineView<Model, Message, ViewInputs>(
       demoTabsView,
       Shared.emailSignupContent,
       playgroundMenu,
-      model.aiHeadingToggleCount,
       viewInputs.maybeGitHubStarCount,
+      viewInputs.resolvedTheme,
+      viewInputs.isBrowserEnvironmentLoaded,
       h,
     )
 

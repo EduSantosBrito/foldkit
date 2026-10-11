@@ -1,8 +1,9 @@
 import { clsx } from 'clsx'
-import { Array, Function, Option, Predicate, String, pipe } from 'effect'
+import { Array, Option, Predicate } from 'effect'
 import { Html, type HtmlBuilder, inertHtml as ih } from 'foldkit/html'
 import { foldkitVersion } from 'virtual:landing-data'
 
+import { type ResolvedTheme } from '../../colorScheme'
 import { CodeBlock, Shared } from '../../component'
 import { Icon } from '../../icon'
 import { Link } from '../../link'
@@ -71,8 +72,9 @@ export const contentView = (
   demoTabsView: Html,
   emailSignupView: Html,
   playgroundMenuView: Html,
-  aiHeadingToggleCount: number,
   maybeGitHubStarCount: Option.Option<number>,
+  resolvedTheme: ResolvedTheme,
+  isBrowserEnvironmentLoaded: boolean,
   h: HtmlBuilder<Message>,
 ): Html => {
   return h.div(
@@ -86,24 +88,24 @@ export const contentView = (
       ),
       glyph('{ }'),
       promiseSection(),
-      glyph('=>'),
-      demoSection(demoTabsView),
+      glyph('??'),
+      devToolsSection(resolvedTheme, isBrowserEnvironmentLoaded),
       glyph('|>', '-translate-y-1/4'),
       poweredBySection(),
+      glyph('::'),
+      testingSection(renderSnippet),
+      glyph('*'),
+      examplesSection,
+      glyph('[ ]'),
+      includedSection(),
+      glyph('=>'),
+      demoSection(demoTabsView),
       glyph('( )'),
       fitSection(),
       glyph('...', '-translate-y-1/3'),
       trustSection(),
-      glyph('[ ]'),
-      includedSection(),
-      glyph('*'),
-      examplesSection,
-      glyph('::'),
-      testingSection(renderSnippet),
-      glyph('??'),
-      devToolsSection(),
       glyph('~~'),
-      aiSection(aiHeadingToggleCount),
+      aiSection(),
       glyph('->'),
       finalCtaSection(emailSignupView, maybeGitHubStarCount),
     ],
@@ -622,7 +624,7 @@ const exampleCatalogTile: Html = ih.keyed('li')(
       [
         ih.Href(examplesRouter()),
         ih.Class(
-          'group flex min-h-20 md:min-h-24 h-full items-center justify-between gap-3 px-3 py-4 md:px-4 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 transition-colors hover:bg-accent-900 dark:hover:bg-accent-100 focus-visible:outline-none focus-visible:bg-accent-900 dark:focus-visible:bg-accent-100',
+          'group flex min-h-20 md:min-h-24 h-full items-center justify-between gap-3 px-3 py-4 md:px-4 rounded-lg bg-accent-100/70 dark:bg-accent-900/35 text-gray-900 dark:text-gray-100 ring-1 ring-inset ring-accent-700/15 dark:ring-accent-400/20 transition-colors hover:bg-accent-200/55 dark:hover:bg-accent-900/55 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 dark:focus-visible:outline-accent-400 focus-visible:bg-accent-200/55 dark:focus-visible:bg-accent-900/55',
         ),
       ],
       [
@@ -706,10 +708,10 @@ const testingSection = (renderSnippet: CodeBlock.RenderSnippet): Html =>
               ),
             ],
             [
-              'Tests that read like ',
+              'Tests that just ',
               ih.span(
                 [ih.Class('text-accent-700 dark:text-accent-500')],
-                ['stories and scenes.'],
+                ['make sense.'],
               ),
             ],
           ),
@@ -758,7 +760,28 @@ const testingSection = (renderSnippet: CodeBlock.RenderSnippet): Html =>
 
 // DEVTOOLS
 
-const devToolsSection = (): Html =>
+const devToolsImage = (resolvedTheme: ResolvedTheme): Html => {
+  const theme = resolvedTheme === 'Dark' ? 'dark' : 'light'
+
+  return ih.img([
+    ih.Src(`/devtools-overlay-${theme}.webp`),
+    ih.Srcset(
+      `/devtools-overlay-${theme}-1x.webp 1x, /devtools-overlay-${theme}.webp 2x`,
+    ),
+    ih.Alt(
+      `Foldkit DevTools inspecting the Architecture documentation, with a Message timeline and the selected Model state showing the ${theme} theme.`,
+    ),
+    ih.Loading('lazy'),
+    ih.Width('972'),
+    ih.Height('637'),
+    ih.Class('w-full h-auto'),
+  ])
+}
+
+const devToolsSection = (
+  resolvedTheme: ResolvedTheme,
+  isBrowserEnvironmentLoaded: boolean,
+): Html =>
   ih.section(
     [ih.Id('devtools'), ih.Class('landing-section')],
     [
@@ -816,22 +839,13 @@ const devToolsSection = (): Html =>
           ih.div(
             [
               ih.Class(
-                'rounded-lg overflow-hidden shadow-xl ring-1 ring-gray-200 dark:ring-gray-700',
+                'aspect-[972/637] rounded-lg overflow-hidden shadow-xl ring-1 ring-gray-200 dark:ring-gray-700',
               ),
             ],
             [
-              ih.img([
-                ih.Src('/devtools-overlay.webp'),
-                ih.Srcset(
-                  '/devtools-overlay-1x.webp 1x, /devtools-overlay.webp 2x',
-                ),
-                ih.Alt(
-                  'Foldkit DevTools overlay inspecting the Foldkit website: a numbered Message timeline on the left with entries like ClickedLink, ChangedUrl, and CompletedScrollToTop, and an expandable Model state tree on the right showing route, url, and theme fields.',
-                ),
-                ih.Width('972'),
-                ih.Height('637'),
-                ih.Class('w-full h-auto'),
-              ]),
+              isBrowserEnvironmentLoaded
+                ? devToolsImage(resolvedTheme)
+                : ih.empty,
             ],
           ),
         ],
@@ -1143,102 +1157,20 @@ const trustItemWithLink = (
 
 // AI
 
-const AI_HEADING_A = 'Built for humans. Readable by AI.'
-const AI_HEADING_B = 'Built for AI. Readable by humans.'
-const STATIC_PREFIX_LENGTH = 10
-
-const solariHeading = (toggleCount: number): Html => {
-  const isSwapped = toggleCount % 2 === 1
-
-  return ih.h2(
-    [
-      ih.Class(
-        'text-[1.25rem] sm:text-2xl md:text-[2rem] font-normal text-amber-500 dark:text-amber-400 mb-4 font-mono',
-      ),
-      ih.AriaLabel(isSwapped ? AI_HEADING_B : AI_HEADING_A),
-    ],
-    pipe(
-      AI_HEADING_A,
-      String.length,
-      Array.makeBy(Function.identity),
-      Array.flatMap((characterIndex): ReadonlyArray<Html | string> => {
-        const characterA = AI_HEADING_A[characterIndex]!
-        const characterB = AI_HEADING_B[characterIndex]!
-        const lastCharacterIndex = AI_HEADING_A.length - 1
-        const isStatic =
-          characterIndex < STATIC_PREFIX_LENGTH ||
-          characterIndex === lastCharacterIndex
-        const isFlipping = !isStatic && characterA !== characterB
-        const isLineBreakPosition = characterIndex === STATIC_PREFIX_LENGTH - 1
-
-        if (isStatic && characterA === ' ') {
-          return isLineBreakPosition
-            ? [' ', ih.br([ih.Class('solari-break')])]
-            : [' ']
-        }
-
-        if (!isFlipping) {
-          return [
-            ih.span(
-              [
-                ih.Class(
-                  clsx(
-                    'solari-character-static',
-                    isStatic
-                      ? 'text-gray-900 dark:text-white'
-                      : 'text-amber-500 dark:text-amber-400',
-                  ),
-                ),
-              ],
-              [characterA],
-            ),
-          ]
-        }
-
-        return [
-          ih.span(
-            [
-              ih.Class(
-                clsx('solari-character', {
-                  'solari-character-flipped': isSwapped,
-                }),
-              ),
-              ih.AriaHidden(true),
-            ],
-            [
-              ih.span(
-                [ih.Class('solari-face solari-face-front')],
-                [characterA === ' ' ? ' ' : characterA],
-              ),
-              ih.span(
-                [ih.Class('solari-face solari-face-back')],
-                [characterB === ' ' ? ' ' : characterB],
-              ),
-            ],
-          ),
-        ]
-      }),
-    ),
-  )
-}
-
-const aiSection = (aiHeadingToggleCount: number): Html =>
+const aiSection = (): Html =>
   ih.section(
     [ih.Id('ai'), ih.Class('landing-section py-10 md:py-14 relative')],
     [
       ih.div(
         [ih.Class('landing-section-narrow relative')],
         [
-          solariHeading(aiHeadingToggleCount),
-          ih.p(
+          ih.h2(
             [
               ih.Class(
-                'text-base md:text-lg font-book text-gray-700 dark:text-gray-300 mb-4 max-w-2xl',
+                'font-sans font-medium text-3xl md:text-4xl text-gray-900 dark:text-white mb-3 text-balance',
               ),
             ],
-            [
-              'Every feature has the same visible structure: a Schema-defined Model, fact-named Messages, exhaustive update, and explicit Commands. AI-generated changes follow code paths a person can inspect and test.',
-            ],
+            ['For agent productivity. And human understanding.'],
           ),
           ih.p(
             [
@@ -1247,7 +1179,7 @@ const aiSection = (aiHeadingToggleCount: number): Html =>
               ),
             ],
             [
-              'AI agents can also connect directly to a running Foldkit app over the Model Context Protocol. They read the current Model, inspect Message history, rewind the UI to past states, and dispatch Messages.',
+              'Agents can use Foldkit’s consistent architecture to build features and inspect running apps through MCP. People can trace the same Model and Message flow to understand, review, and test the result.',
             ],
           ),
           ih.a(

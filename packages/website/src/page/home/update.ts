@@ -1,4 +1,4 @@
-import { Number, Option } from 'effect'
+import { Option } from 'effect'
 import { Update } from 'foldkit'
 import { modifyFields } from 'foldkit/struct'
 
@@ -96,9 +96,6 @@ type UpdateReturn = Update.ReturnWithOutMessage<
 
 export const update = (model: Model, message: Message) =>
   Message.match<UpdateReturn>(message, {
-    ToggledAiHeading: () => ({
-      model: modifyFields(model, { aiHeadingToggleCount: Number.increment }),
-    }),
     GotDemoTabsMessage: ({ message }) => foldDemoTabs(model, message),
     GotPlaygroundMenuMessage: ({ message }) =>
       foldPlaygroundMenu(model, message),
