@@ -48,7 +48,7 @@ export const view = (
   h.aside(
     [
       h.Class(
-        'docs-toc hidden xl:block fixed top-[var(--header-height)] bottom-0 z-30 w-64 overflow-y-auto overscroll-none bg-cream dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 px-4 pt-4 pb-4',
+        'docs-toc hidden xl:block fixed top-[var(--header-height)] bottom-0 z-30 w-64 overflow-y-auto bg-cream dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 px-4 pt-4 pb-4',
       ),
     ],
     [
