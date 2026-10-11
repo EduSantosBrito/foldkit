@@ -180,4 +180,15 @@ describe('server-rendered example manifests', () => {
       )
     })
   }
+
+  it('pins the SSR Node platform packages to one Effect version', () => {
+    const manifest = readManifest('ssr')
+    const effectVersion = manifest.dependencies?.['effect']
+
+    expect(effectVersion).toBeDefined()
+    expect(manifest.dependencies?.['@effect/platform-node']).toBe(effectVersion)
+    expect(manifest.dependencies?.['@effect/platform-node-shared']).toBe(
+      effectVersion,
+    )
+  })
 })
