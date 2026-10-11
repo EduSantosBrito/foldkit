@@ -61,9 +61,15 @@ When `isAnimated` is true, enter/leave animations flow through the [Animation](/
 
 ::Snippet{name="uiPopoverArrowStyles" label="Popover arrow styles"}
 
+#### Position the Arrow
+
 `--arrow-x` and `--arrow-y` position the arrow along the panel edge. Anchor sets one of them for each placement, while the matching `data-placement` rule pins the arrow to the correct side.
 
+#### Support Placement Flips
+
 Write a rule for every side the panel can use because a `bottom` placement can flip to `top`, and a `left` placement can flip to `right`. The direct-child selector keeps a nested popover tied to its own panel. Pass `arrowPadding` to keep the arrow clear of rounded corners.
+
+#### Size and Border the Arrow
 
 The square SVG keeps its measurements stable when the placement flips. Its fill extends 2px into the panel to mask the border beneath it, while a separate path outlines only the two outward-facing edges. The 16px arrow reaches 8px past the panel, so the demo uses `gap: 10` to keep it clear of the trigger. Anchor centers the arrow on the trigger along the panel's edge.
 
@@ -73,7 +79,11 @@ An arrow sits outside the panel, so scrolling the panel itself would clip it. An
 
 ::Snippet{name="uiPopoverScrollablePanel" label="Scrollable popover panel styles"}
 
+#### Keep Height Inside the Panel
+
 `min-height: 0` lets the child shrink below its content height so it can scroll. `box-sizing: border-box` keeps the panel's padding and border within the height Anchor measured.
+
+#### Avoid Inherited Maximum Height
 
 Do not put `max-height: inherit` on the child. That copies the panel's full measured height without accounting for the panel's padding and border. The flex layout avoids that arithmetic.
 
@@ -89,7 +99,11 @@ By default, the panel receives `tabindex="0"` so it can receive focus. Tab navig
 
 ## Accessibility
 
+### Disclosure Semantics
+
 The button receives `aria-expanded` and `aria-controls` linking to the panel. The panel has no role. Popover uses the disclosure pattern, not the menu pattern.
+
+### Name the Trigger
 
 Give the trigger an accessible name. For a visible label, wire a native `<label for>` that targets the trigger id with `Popover.buttonId(id)` rather than hardcoding the `-button` convention. The `for` association makes the trigger properly labeled: assistive technology announces it by the visible label text, and clicking the label opens the popover. That is why it is the recommended pattern.
 

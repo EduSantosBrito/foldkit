@@ -20,7 +20,11 @@ The recommended and all presets require PascalCase modules imported from `effect
 
 When an Effect module shares a name with a JavaScript or TypeScript global, keep the Effect import unchanged and qualify the global through `globalThis`, such as `globalThis.String`, `globalThis.Array`, or `globalThis.Record`. If an existing local or public binding must retain the module name, give the Effect import an explicit prefix such as `Order as EffectOrder`. Aliases for lowercase functions and type-only imports remain valid.
 
+#### Automatic Fixes
+
 The rule safely fixes a binding and its references when the exported name is available. It reports without fixing when a rename could change binding resolution, compete with another alias for the same exported name, change an object shorthand key or named re-export, or discard a comment in the import specifier.
+
+#### Disabling the Rule
 
 Disable the rule when a project deliberately keeps Effect module aliases:
 
@@ -33,6 +37,8 @@ Disable the rule when a project deliberately keeps Effect module aliases:
 The recommended and all presets enable this rule in `entry.server.ts`, `entry.server.tsx`, TypeScript files under a `server` directory, and `prerender.ts` or `prerender.tsx`. Files ending in `.test.ts`, `.test.tsx`, `.spec.ts`, or `.spec.tsx` are excluded.
 
 The rule catches direct runtime reads of common browser-only globals: `document`, `window`, `navigator`, `localStorage`, `sessionStorage`, `history`, `location`, `alert`, `confirm`, `prompt`, `requestAnimationFrame`, `cancelAnimationFrame`, `requestIdleCallback`, `cancelIdleCallback`, `getComputedStyle`, `matchMedia`, `customElements`, `screen`, `IntersectionObserver`, `ResizeObserver`, and `MutationObserver`. It also catches static property reads and destructuring from the global `globalThis` object.
+
+#### Exceptions and Limits
 
 Local bindings, parameters, and type-only `typeof` queries remain valid. `Request`, `Response`, `Headers`, `fetch`, and `URL` remain available for host code. A host-specific file can use an Oxlint disable comment or a narrower config override when it deliberately depends on one deployment target.
 
@@ -100,9 +106,15 @@ Lifts a Command result Message with `Command.mapMessage` or `Command.mapMessages
 
 ### foldkit/no-empty-commands-array {#no-empty-commands-array}
 
+#### Reported Shape
+
 Catches a literal empty array assigned to `commands`. An ordinary update, init, boot, or component helper omits `commands` when it statically has no Commands. Computed collections remain valid, as does `commands: optionalCommands ?? []` where the next operation requires an array.
 
+#### Fixing Empty Commands
+
 The rule can remove the property when doing so will not disturb comments, spreads, or duplicate `commands` keys. It still reports the unsafe cases without a fix.
+
+#### Syntax Scope
 
 This is a syntax-only rule. It flags any literal property named `commands`, even when the object is unrelated to an update result. If `commands: []` is genuine domain data, suppress the rule on that property with `// oxlint-disable-next-line foldkit/no-empty-commands-array`.
 
@@ -178,9 +190,15 @@ Catches an inline empty array in the children slot, on element builders and on k
 
 ### foldkit/no-prevent-default-in-stream-operator {#no-prevent-default-in-stream-operator}
 
+#### Why Downstream Cancellation Is Late
+
 Flags `preventDefault()` inside callbacks passed to `Stream.map`, `Stream.mapEffect`, `Stream.filterMap`, `Stream.filterMapEffect`, `Stream.filter`, `Stream.filterEffect`, or `Stream.tap`. A DOM event placed into a callback-backed Stream is queued before downstream operators run, so cancellation there happens after the native listener returns and may be too late for the browser.
 
+#### Synchronous Cancellation
+
 Use [`Dom.streamFromEventFilterMapPreventDefault`](/core/dom#filtered-events-and-synchronous-cancellation) instead. Its `filterMapEvent` mapper returns `Option.some(value)` for a handled event or `Option.none()` for an event the browser should handle normally. Foldkit calls `preventDefault()` for handled events before the native listener returns.
+
+#### Static Analysis Scope
 
 The rule recognizes inline callbacks and functions declared in the same module. It is intentionally conservative about the Stream's source. Suppress it when the value is not a DOM event or the Stream is deliberately executed synchronously inside a native listener.
 
@@ -188,7 +206,9 @@ The rule recognizes inline callbacks and functions declared in the same module. 
 
 ### foldkit/no-impure-call-at-decision-time {#no-impure-call-at-decision-time}
 
-Flags these direct calls unless they appear inside a recognized callback that Effect or a Foldkit lifecycle primitive defers until execution:
+#### Calls the Rule Flags
+
+The rule flags these direct calls unless they appear inside a recognized callback that Effect or a Foldkit lifecycle primitive defers until execution:
 
 - `Date.now()`
 - `Date()` (which ignores its arguments)
@@ -200,6 +220,8 @@ Flags these direct calls unless they appear inside a recognized callback that Ef
 
 The rule reports the call wherever it is written. Assigning its result to a local variable before passing that variable to a Command does not defer it. Neither does writing the call directly in the Command args. JavaScript obtains the value before constructing the Command in both cases.
 
+#### Deferred Execution Boundaries
+
 Obtain time or randomness inside the Command's `execute` callback instead. Use `Clock` or `Random` for time and ordinary randomness. For UUIDs and cryptographic randomness, use the `Crypto.Crypto` service with the platform's Crypto layer. Return the value in the result Message.
 
 The rule recognizes the deferred callback positions in Effect and Stream. It also recognizes these Foldkit lifecycle callbacks when they are declared inline:
@@ -210,9 +232,13 @@ The rule recognizes the deferred callback positions in Effect and Stream. It als
 
 Not every function passed to Effect is deferred. The rule still checks functions stored as Effect values, `Effect.fromOption`'s `onNone`, callbacks passed to `Effect.run*`, transform callbacks after the body of `Effect.fn` or `Effect.fnUntraced`, and callbacks passed to Effect APIs whose names end in `Eager`. It also checks the surrounding lifecycle builders and their synchronous Model projections. For example, `Subscription.make`'s builder and `modelToDependencies` are not execution callbacks.
 
+#### Preset Exclusions
+
 The recommended and all presets disable this rule in runtime entry files (`entry.ts`, `entry.tsx`, `entry.client.ts`, `entry.client.tsx`, `entry.server.ts`, and `entry.server.tsx`), where Flags and host integrations obtain outside values. The `.tsx` forms support JSX hosts, such as a React application that embeds Foldkit; Foldkit views still use the Html builder.
 
 The presets also disable the rule in TypeScript files under a `server` directory and in `prerender.ts` or `prerender.tsx`. Those files belong to the host rather than the Foldkit application state machine, so their request handlers and build scripts do not return values through Messages. Test files remain excluded with the rest of the Foldkit rules.
+
+#### Limits of Static Analysis
 
 This direct-call catalog does not prove that a file is pure. It recognizes static global member paths and ignores locally shadowed globals. It does not follow a method alias such as `const now = Date.now` to a later `now()` call, nor does it inspect a helper's call graph.
 
@@ -234,9 +260,15 @@ Flags turning off the freezeModel or slow dev guardrails. Fix the mutation or sl
 
 ### foldkit/no-empty-to-parent-out-message {#no-empty-to-parent-out-message}
 
+#### Omit Empty Mappers
+
 Flags an inline `toParentOutMessage` mapper that always returns `undefined`, including a keyed factory whose returned mapper does so. That mapper forwards nothing to the parent, so omit the property.
 
+#### Partial Forwarding
+
 Partial forwarding is valid. Match every child OutMessage variant. Return a parent OutMessage for each variant you want to forward, and return `undefined` for each variant that stops at this Submodel.
+
+#### Fixing Empty Mappers
 
 The rule fixes straightforward object literals. If removal could disturb a comment, spread, dynamic computed property, or duplicate `toParentOutMessage` key, it reports the problem without changing the code. It does not inspect async functions, generators, getters, setters, or mappers referenced by name.
 

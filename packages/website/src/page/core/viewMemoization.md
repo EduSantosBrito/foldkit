@@ -49,11 +49,15 @@ Keys can also identify fixed call sites. If one view function renders in two pla
 
 ## When to Use Lazy Views {#when-to-use-lazy}
 
+### Good Candidates
+
 Consider a lazy view when:
 
 - A large subtree changes less often than its parent.
 - A long list usually changes only a few items.
 - Profiling shows that building or diffing a view is expensive.
+
+### Verify with Profiling
 
 Do not add lazy views to every function. Small views and inputs that change on every render receive no useful cache hits. Confirm the repeated work with the [slow warnings](/core/slow-warnings) and a profiler first.
 

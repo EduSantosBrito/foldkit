@@ -2,6 +2,8 @@
 
 ## When to Create a Submodel {#overview}
 
+### Encapsulation and Decomposition
+
 Use a Submodel when part of the application owns a state machine, not merely a section of markup. A Submodel has its own Model, Message union, and update function. It may also own Commands, Subscriptions, OutMessages, or a view. Its parent stores the child Model, routes child Messages, and decides what to do with facts that cross the boundary.
 
 Two needs commonly create that boundary:
@@ -10,6 +12,8 @@ Two needs commonly create that boundary:
 - **Decomposition:** A feature area such as Settings or Profile owns enough state and Messages that separating its update loop makes the application easier to navigate.
 
 Both use the same contract. Internal state stays behind the boundary, and values crossing it have named roles. A `Listbox` can report that an item was selected without exposing its highlight index or focus bookkeeping. A feature Submodel can [read shared parent state](#reading-parent-state) and [surface domain facts](#surfacing-facts) without taking ownership of the whole application.
+
+### State and View Boundaries
 
 :::Info{label='The word "boundary"'}
 Every Submodel has a state and update boundary: the parent stores its Model and folds its Messages without changing the child Model directly. When a Submodel owns a view, each `h.submodel` call also creates a runtime view boundary identified by `slotId`. [Query](/core/query) is a viewless Submodel, so it has the state and update boundary without an `h.submodel` call or `slotId`.
@@ -45,6 +49,8 @@ The parent stores the child Model, but the child still owns it. Do not use [modi
 
 ::Snippet{name="submodelDirectModifyFieldsAntipattern" label="❌ Resetting child state directly"}
 
+#### Parent Entry Points
+
 For a parent-initiated change, export a helper from the child and fold that helper with `Update.foldChild`. The parent can call `Settings.setTheme` without importing the internal `ChangedTheme` constructor.
 
 ::Snippet{name="submodelDelegateViaHelper" label="✅ Resetting child state through update"}
@@ -52,6 +58,8 @@ For a parent-initiated change, export a helper from the child and fold that help
 Stateful Foldkit UI components expose the same kind of entry point. For example: `Popover.close` and a Listbox instance's `selectItem` helper run the component's update without exposing its internal Message constructors.
 
 Messages produced by the child take the regular wrapper path described below. Helpers cover the opposite direction, when the parent needs to initiate a child transition.
+
+#### What Direct Changes Skip
 
 Bypassing update creates three problems:
 
@@ -83,13 +91,19 @@ The resulting fold reads the child, runs its update, writes it back, and lifts i
 
 ::Snippet{name="submodelFoldChild" label="Using foldChild"}
 
+#### Optional Children and Step Composition
+
 `read` returns an `Option` because a routed page or child entry may be absent from the parent Model. When `read` returns `None`, the fold leaves the parent Model unchanged. An always-present child returns `Option.some(model.settings)`.
 
 The fold is dual. `foldSettings(model, message)` runs it immediately. `foldSettings(message)` returns an `Update.Step<ParentModel, ParentMessage>` for `Update.combine`. Close over per-dispatch context in the `update` field, and apply route gates before calling the fold.
 
+#### Child Entry Points
+
 Use `Update.foldChildStep` for an entry point that takes only the child Model, such as `Dialog.close`. It accepts the same fields and returns an `Update.Step<ParentModel, ParentMessage>`. Add `toParentOutMessage` when at least one child OutMessage should continue to the current Submodel's parent. The fold then returns an `Update.StepWithOutMessage<ParentModel, ParentMessage, ParentOutMessage>`.
 
 ::Snippet{name="submodelFoldChildStep" label="Using foldChildStep with OutMessage forwarding"}
+
+#### Child Initialization
 
 Use `Update.foldChildInit` when one child `init` or `boot` result needs to enter a parent Model. It is data-first because initialization has no reusable data-last Step. Provide `toParentModel` instead of `read` and `write`; Foldkit lifts child Commands and gives `foldOutMessage` the completed parent Model. Say `Settings.boot` receives a saved theme from flags and emits `RestoredTheme`. The parent returns a Command to apply that theme after constructing its Model.
 
@@ -99,11 +113,15 @@ Use `Update.foldChildInits` when several children initialize together. Its `toPa
 
 ### Wiring the View with h.submodel {#wiring-the-view}
 
+#### Defining the Child View
+
 A viewless Submodel needs no runtime view wiring. Its parent can render values the child exposes through public accessors, such as Query's `read`. When a Submodel owns rendering, define its view with `Submodel.defineView<Model, Message>`. It receives the child Model and a builder for child Messages.
 
 `defineView` brands the function with its child Model and Message types. The parent can then embed it without repeating those types, and handlers inside the child accept only child Messages.
 
 ::Snippet{name="submodelChildView" label="Child view"}
+
+#### Required Embed Fields
 
 The parent passes four required fields to `h.submodel`:
 
@@ -118,6 +136,8 @@ Any parent with the required Model and wrapper can embed the same `Settings.view
 
 ### Per-render View Inputs
 
+#### Parent-Owned Render Data
+
 Use `ViewInputs` for parent-owned data the child needs only while rendering. A Listbox may need items and an item renderer, while its Model owns highlight and selection state.
 
 Pass `ViewInputs` as the third type parameter to `defineView`. The view then receives `(model, viewInputs, h)`.
@@ -130,6 +150,8 @@ The parent supplies `viewInputs` at the embed site.
 
 Keep state in the child Model and per-render configuration in `viewInputs`. The child changes its Model through update. The parent rebuilds `viewInputs` on each render.
 
+#### Slot Callbacks
+
 A top-level slot callback such as `toView` lets the parent choose markup while the child supplies state and attributes. Foldkit runs top-level `viewInputs` functions in the parent's boundary. A handler the parent builds inside the callback therefore dispatches a parent Message. [childAttributes](#child-attributes) handles the opposite case, when child-owned attributes cross into that markup.
 
 :::Warning{label="Keep slot callbacks at the top level"}
@@ -140,15 +162,23 @@ Functions nested inside an object or array in `viewInputs` throw when Foldkit bu
 
 `slotId` identifies a rendered position, not a Model value. Every `h.submodel` call under one parent boundary needs a distinct `slotId`, even when two positions render the same child Model.
 
+### Fixed and Repeated Positions
+
 For fixed positions, name the position: `'desktop-sidebar'` and `'mobile-sidebar'`. For a list, use the stable item identifier because each item occupies its own position.
+
+### Duplicate Slot IDs
 
 Foldkit throws while building the view when sibling boundaries reuse a `slotId`.
 
 ## Multiple Instances
 
+### Fixed and Dynamic Collections
+
 A parent can hold a fixed or dynamic number of child instances.
 
 For a fixed set, give each child its own Model field and `slotId`. For a dynamic set, start with an array. Use the same stable identifier for the row key, `slotId`, and wrapper Message.
+
+### Shared and Independent State
 
 When at most one child instance is active, store one child Model and an `Option` of its key. A table with at most one open row menu can share one Menu Model. Use a collection when multiple instances need independent state at once, such as editors on several rows or progress for several uploads.
 
@@ -156,19 +186,29 @@ When at most one child instance is active, store one child Model and an `Option`
 
 ::Snippet{name="submodelMultipleInstances" label="Folding a child in a collection" class="mb-4"}
 
+#### Selecting and Writing the Child
+
 Use `Update.foldChildAt` to run a child update for one Submodel selected by key. `readAt` finds the child Model, and `writeAt` stores the next one. `toParentMessage` receives the key when wrapping the result Message of each child Command. If `readAt` returns `None` for that key, the fold leaves the parent Model unchanged. The [job-application example](/example-apps/job-application) stores education, work-history, and skills Submodels in arrays. Each Submodel has a stable entry ID that `foldChildAt` uses as its key.
+
+#### OutMessages by Key
 
 When the selected child emits an OutMessage, `foldOutMessage` takes the key and returns a matcher whose handlers produce parent Steps. If an OutMessage handler returns a child Command, give the `foldOutMessage` factory a second `FoldContext` parameter and use its lifters to wrap the Command's result Message. To forward an OutMessage, `toParentOutMessage` takes the key and returns a matcher that produces a parent OutMessage. Neither factory runs when the child emits no OutMessage.
 
 ## Memoization Across Submodel Boundaries {#memoization}
 
+### Cache Boundary
+
 By default, a parent render runs each child view again. If profiling finds repeated work in a long list or expensive child view, place the embed site behind `createKeyedLazy` from `foldkit/html`.
 
 Foldkit keeps the boundary registration alive across cache hits and removes it when the VNode leaves the tree. Key the lazy view with the same stable identifier used by `slotId`.
 
+### Further Guidance
+
 The [View Memoization](/core/view-memoization) page covers cache identity, limits, and measurement.
 
 ## Reading Parent State
+
+### Choosing the Input
 
 Do not copy shared parent state into a child Model merely so the child can read it. Choose the boundary based on when the child needs the value:
 
@@ -195,6 +235,8 @@ Context does not notify the child when a value changes. If the child must react 
 
 ## Surfacing Facts to the Parent {#surfacing-facts}
 
+### Wrapper Messages and OutMessages
+
 Wrapper Messages route child work back into the child update. An OutMessage reports a fact the parent may need to act on, such as a committed date, selected tab, or completed login.
 
 The child update can include an OutMessage in its optional `outMessage` field. The child describes what happened, and the parent decides the consequence. A Login Submodel can emit `SucceededLogin` without knowing how the root stores a session or changes the URL.
@@ -215,15 +257,23 @@ The child update returns its Model, optional Commands, and an optional OutMessag
 
 ### Handling in the Parent
 
+#### Folding OutMessages
+
 Handle the OutMessage through `foldOutMessage` on [Update.foldChild](#fold-child). `Update.foldChildInit` accepts the same OutMessage adapters when one child emits a fact during initialization. `Update.foldChildInits` applies those adapters to each named child after its shared `toParentModel` has constructed the parent Model. Bind the fold as a standalone `fold<Child>OutMessage` value and match on every OutMessage tag. The returned `Update.Step<ParentModel, ParentMessage>` receives the parent Model after the updated child has been written back or after `toParentModel` has constructed it.
 
 Do not unpack a child update, helper, init, or boot result by hand. Destructuring `model` and `commands` can leave its `outMessage` behind without a type error. Dot access can still ignore an OutMessage, but an operation-named value keeps all three returned fields visible together. Use `Update.foldChild`, `Update.foldChildStep`, `Update.foldChildInit`, or `Update.foldChildInits` so the child Model, lifted Commands, and OutMessage remain part of one fold.
 
 ::Snippet{name="outMessageFoldChild" label="Using foldChild with foldOutMessage"}
 
+#### Lifting Child Commands
+
 The fold appends the Step's Commands after the child's lifted Commands. If the Step returns a child Command, use `liftCommand` or `liftCommands` from `Update.FoldContext`. The lifter wraps the Command's result Message with the same `toParentMessage` used by the child fold.
 
+#### Fold Context Typing
+
 When a `foldChildInits` entry needs that context, annotate both parameters, such as `(outMessage: Search.OutMessage, { liftCommand }: Update.FoldContext<Search.Message, Message>)`. The `folds` record cannot infer the context's parent Message from the same entry's `toParentMessage`. The [FoldContext example](#handling-in-the-parent) uses the same typed handler shape.
+
+#### Parent-Owned Command Inputs
 
 In this example, only the parent knows the redirect Route for `Login.SendMagicLink`. The child emits `RequestedMagicLink`, and the parent fills in the Route while keeping the Command result inside the Login boundary.
 
@@ -231,9 +281,13 @@ In this example, only the parent knows the redirect Route for `Login.SendMagicLi
 
 [Update.foldChildStep](#fold-child) supplies the same fold context for no-argument child entry points. It also accepts `toParentOutMessage` when the current Submodel forwards a child OutMessage to its parent.
 
+#### Forwarding OutMessages
+
 A parent Submodel adds `toParentOutMessage` only when it passes at least one child OutMessage up to its own parent. Match every child variant. Return the parent's OutMessage for each variant that should continue upward. Return `undefined` for each variant that stops at this Submodel. The [Auth example](/example-apps/auth) forwards a successful login through two Submodel levels to the root.
 
 If every child OutMessage stops at this Submodel, omit `toParentOutMessage`. Any `foldOutMessage` handling still runs. A forwarded OutMessage also runs through `foldOutMessage`, so the same event can update this Submodel before it continues upward. Do not add `toParentOutMessage: () => undefined` just to change the fold's return type.
+
+#### Deriving Parent OutMessages
 
 `toParentOutMessage` passes the child's fact upward one to one. When the parent's fact is derived instead, annotate the fold's return type as `Update.StepWithOutMessage` and return the parent OutMessage in `outMessage`. For example, a picker child emits `SelectedDate`, and the parent applies it to its own Model and emits `CompletedRange` only once both dates are set. This path needs no `toParentOutMessage` adapter.
 
@@ -241,21 +295,35 @@ When a fold both derives a parent OutMessage and has a one-to-one lift, the deri
 
 ## Reflecting External State
 
+### Silent Inbound Changes
+
 OutMessages move facts from child to parent. A `reflect*` helper handles the inbound direction, when an external source such as the URL, restored storage, or a sibling field requires the child to conform.
 
+#### Return Contract
+
 A `reflect*` helper returns the child Model directly. It does not return Commands or an OutMessage. The external value is already the source of truth, so emitting it back could create a write loop.
+
+#### Point-Free Helpers
 
 Define reflect helpers with `Function.dual` so they work point-free in [modifyFields](/best-practices/immutability#immutable-updates). Here the URL owns the price range, and the parent reflects that range onto a Slider.
 
 ::Snippet{name="submodelReflectExternalState" label="Reflecting URL price bounds into a Slider"}
 
+### Ownership and Naming
+
 Only the owner calls a child's `reflect*` helper. User interactions still go through the child update and may emit OutMessages.
 
+#### External Ownership
+
 External means outside this child boundary, not outside the application. For example: when a start date changes, the parent can call `reflectMinDate` on the end-date picker. The end-date child did not cause the change, but it must obey the new constraint.
+
+#### Naming
 
 Foldkit UI uses domain verbs such as `selectItem` and `selectDate` for user choices that can emit. Silent inbound setters use the `reflect*` prefix, including Calendar and DatePicker constraints and Slider's `reflectRange`.
 
 ## Which Boundary a Handler Dispatches Through {#which-boundary}
+
+### Dispatch Rules
 
 An element dispatches through the boundary where it is built. The builder carries that boundary, which is why every view receives `h` as an argument.
 
@@ -268,11 +336,15 @@ Inside a Submodel there are two frames, with opposite defaults:
 
 The child view normally builds child handlers. A slot callback normally builds parent handlers.
 
+### Shared Renderers
+
 A shared helper may belong to a sibling Submodel or the parent itself. For example: documentation pages render a shared SnippetCopy Submodel and heading links owned by the application shell. Let the parent build those renderers and pass them through top-level `viewInputs` callbacks.
 
 ::Snippet{name="submodelSharedRenderers" label="Shared renderers"}
 
 The callbacks run in the parent's boundary. The heading link reaches the parent update directly, while each snippet button establishes its own child boundary and produces `GotSnippetCopyMessage` for the parent to fold.
+
+### Builder Lifetime
 
 Thread `h` through view functions. Never store it in module state. A stored builder can outlive its render boundary and fail when a handler dispatches.
 
@@ -314,17 +386,25 @@ Stateless helpers such as `Button` and controlled helpers such as `Checkbox` are
 
 ## Testing Submodels
 
+### Child Tests
+
 Test child update with Story and child view with Scene. Both accept the same shapes at the child level that they accept at the root.
 
 Use `expectOutMessage` for a child's OutMessage. For an update with context, close over the test context: `(model, message) => Settings.update(model, message, { currentUser })`.
+
+### Parent Tests
 
 Test the parent when the behavior crosses the boundary, such as routing a wrapper by id or folding an OutMessage. See [Testing](/testing) for choosing the level.
 
 ## Debugging Submodels in DevTools {#debugging-in-devtools}
 
+### Wrapper Discovery
+
 The `Got*Message` convention powers the Submodel filter in [Foldkit DevTools](/core/devtools). Selecting a child scopes the timeline and Model diffs to that boundary.
 
 Another wrapper name still routes correctly, but DevTools cannot discover it for the filter.
+
+### OutMessages in History
 
 An OutMessage is processed within the parent fold. Any later parent Message appears as its own timeline entry.
 

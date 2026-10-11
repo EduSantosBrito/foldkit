@@ -16,9 +16,13 @@ The `File` module brings browser file APIs into the Foldkit architecture. It ope
 
 ## Selecting Files
 
+### Picker Filters
+
 `File.select` and `File.selectMultiple` open a temporary native file input. Both accept a list of MIME types or extensions, which Foldkit forwards to the input's `accept` attribute.
 
 The `accept` list filters the picker UI; it does not validate the selected file. Validate type, size, and contents in your own update and Commands when those constraints matter.
+
+### Cancellation
 
 Cancellation is a normal result, not an Effect failure. `File.select` returns `Option.some(file)` after a selection and `Option.none()` after cancellation. `File.selectMultiple` returns all selected files, or an empty array after cancellation. Map either result into domain-specific Messages in the Command.
 

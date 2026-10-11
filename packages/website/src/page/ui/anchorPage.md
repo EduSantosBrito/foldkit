@@ -4,7 +4,11 @@
 
 Anchor is the positioning runtime the floating components are built on. [Listbox](/ui/listbox), [Combobox](/ui/combobox), [Menu](/ui/menu), [Popover](/ui/popover), and [Tooltip](/ui/tooltip) hand their `anchor` prop straight to it, and [Date Picker](/ui/date-picker) forwards its own through Popover. It wraps [Floating UI](https://floating-ui.com), adding the portaling, focus choreography, and styling hooks those components share.
 
+### Build a Custom Floating Component
+
 It is exported so you can build an anchored component Foldkit does not ship. If one of the six above fits, use it. Reach for this module when the panel you need differs structurally from all of them, for example a virtualized list with group headers, or a multi-select that stages changes against an open-time baseline and commits them with a Done action.
+
+### Import Anchor
 
 ::Snippet{name="uiAnchorExports" label="Anchor imports"}
 
@@ -16,11 +20,17 @@ The module is also exported from the root barrel, as `import { Anchor } from '@f
 
 ::Snippet{name="uiAnchorBasic" label="Anchored panel"}
 
-Two details decide whether the panel behaves:
+Three details decide whether the panel behaves:
+
+### Resolve the Trigger
 
 The trigger needs a stable id. `anchorSetup` resolves the button by `buttonId` through the element's own root, so a panel rendered inside a shadow root finds a trigger in that same shadow root. A document-scoped lookup would not. If the id does not resolve, or the trigger or panel is not an HTML element, `anchorSetup` reports the specific problem to the console and returns a cleanup that does nothing. The panel remains hidden. A failed positioning tick also reports an error; the panel stays hidden until a later tick succeeds.
 
+### Hide the Panel Before Positioning
+
 The panel must start hidden. `anchorSetup` clears `visibility` after the first position resolves, which means the element is expected to render at `visibility: hidden`. Skip it and the panel paints at the top left corner for a frame before Floating UI places it.
+
+### Remount When the Config Changes
 
 Mount args are captured at mount, not refreshed across renders. A changed `anchor` value does not reach a running Mount, so unmount and remount the panel when the config has to change.
 
@@ -30,9 +40,15 @@ Mount args are captured at mount, not refreshed across renders. A changed `ancho
 
 `portalToContainingRoot` is the same relocation as a standalone function, for the elements `anchorSetup` does not touch. For a click-outside backdrop, use `portalBackdrop` instead, described below. Popover, Listbox, Menu, and Combobox each portal their backdrop through a second Mount. Give yours its own `Mount.define`, since [one element takes one Mount](/core/mount).
 
+### The Shared Portal Root
+
 The portal root is a shared `foldkit-portal-root` div in the containing root. The containing root is the shadow root when the app is mounted inside one, and `document.body` otherwise, so a portaled panel keeps that root's scoped styles. The portal root div is prepended rather than appended, which keeps component wrappers painting above a backdrop and leaves click-outside detection working.
 
+### Panels Inside Dialogs
+
 An element inside a `<dialog>` is portaled into that dialog instead. Say a Listbox sits in a [Dialog](/ui/dialog). Portaled to `document.body`, its panel would be drawn behind the dialog, and the Dialog's modal isolation would make it inert. So the panel goes into a div marked `data-foldkit-portal-root`, appended as the dialog's last child. There it renders above the dialog's content and stays interactive. The div is removed once nothing is portaled into it.
+
+### Backdrops Inside Dialogs
 
 A backdrop inside a dialog does not go into that div. Appended after the dialog's content, it would cover the trigger too, and a click in a Combobox input would close the list instead of placing the cursor. `portalBackdrop` moves the backdrop to directly before the element it was rendered in, which is the positioned wrapper that holds the trigger. The backdrop then covers the rest of the dialog, and the wrapper stays above it. When you render a Popover backdrop yourself, put it inside that wrapper. Some CSS on an ancestor between the wrapper and the dialog confines the backdrop to that ancestor. This happens when the ancestor becomes the containing block for fixed-position elements, for example through `transform`, `scale`, `filter`, `backdrop-filter`, or `container-type`. A click outside that ancestor then misses the backdrop, so the overlay stays open. If the click also lands outside the dialog panel, it reaches the Dialog's own backdrop and closes the whole dialog.
 

@@ -4,11 +4,17 @@
 
 An accessible date picker that wraps `Calendar` in a `Popover`. Consumers provide the trigger button face and the calendar grid layout. DatePicker handles focus choreography (opening focuses the grid, closing returns focus to the trigger), open/close state, and an optional hidden form input for native form submission.
 
+### State Ownership
+
 DatePicker is a Submodel. Initialize it with `DatePicker.init()`, store its Model in the parent, wire its Messages through [`Update.foldChild`](/core/submodel#fold-child), and render it with `DatePicker.view()`.
 
 The parent owns the selected date. Store it in the parent Model, pass it to the view as `maybeSelectedDate`, and handle `SelectedDate` and `ClearedDate` in the fold's `foldOutMessage`. DatePicker can also emit `ChangedViewMonth` when navigation changes the visible month.
 
+### Programmatic Control
+
 For programmatic control in a parent update, fold `DatePicker.open` and `DatePicker.close` with `Update.foldChildStep`. Both helpers can emit an OutMessage that reports whether the DatePicker opened or closed.
+
+### Calendar Views
 
 The calendar heading inside the popover is a button: clicking it switches the day grid into a 3x4 months grid; clicking the year heading from there switches into a paged 3x4 years grid. Selecting a year drills back to the months grid for that year; selecting a month drills back to the days grid for that month. Re-opening the popover always shows the day grid.
 
@@ -56,6 +62,8 @@ The trigger button opens the popover on Enter, Space, or ArrowDown. Inside the p
 ## Accessibility
 
 The trigger button uses `aria-expanded` and `aria-controls` to announce the popover relationship. Inside the popover, the calendar grid renders with `role="grid"` and an explicit `aria-label` that leads with a non-numeric word ("Calendar, April 2026") so VoiceOver does not pattern-match the grid's row position into a date literal. `aria-activedescendant` tracks the keyboard cursor; rows carry `role="row"` with `aria-rowindex`; cells carry `role="gridcell"`, `aria-colindex`, and `aria-selected` on the chosen date. Day buttons carry full accessible names via `aria-label` and disabled days get `aria-disabled="true"`. When a hidden form input is enabled via the `name` prop, the selected date is encoded as an ISO string (`YYYY-MM-DD`) for native form submission.
+
+### Naming the Trigger
 
 Give the trigger an accessible name. For a visible label, wire a native `<label for>` that targets the trigger id with `DatePicker.triggerId(id)` rather than hardcoding the `-popover-button` convention. The `for` association makes the trigger properly labeled: assistive technology announces it by the visible label text, and clicking the label opens the date picker. That is why it is the recommended pattern.
 

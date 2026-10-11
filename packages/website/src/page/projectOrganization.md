@@ -14,19 +14,27 @@ When one file becomes hard to navigate, separate the root pieces and give each [
 
 ::Snippet{name="fileLayout" label="Recommended application structure"}
 
+### Give Each Feature Its Own Files
+
 Each feature folder owns its Model, Messages, update, view, Commands, Subscriptions, and tests. Do not create empty files only to match the diagram. Add a file when the feature has that concern.
 
 Keep Commands beside the update that returns them. A feature that fetches its own data owns that Command instead of importing it from a root Command collection. Extract `message.ts` when a Command needs to import its result Message constructors without creating a cycle.
 
 A feature that declares Subscriptions owns `subscription.ts`. The parent lifts that record into its own Model and Message types. See [Subscription Organization](/patterns/subscription-organization).
 
+### Split a Feature When It Grows
+
 Split a large feature again only when its own files become difficult to navigate. The [Typing Terminal room source](https://github.com/foldkit/foldkit/tree/main/packages/typing-game/client/src/page/room) has `view/` and `update/` subfolders inside one Room feature.
 
 ## Where Tests Live
 
+### Test Within the Owning Feature
+
 Colocate tests with the boundary they exercise. A feature's `story.test.ts` drives its update. Its `scene.test.ts` drives its view, using `withViewInputs` when the view requires them.
 
 Test rendering, interactions, Commands, and OutMessages inside the feature that owns them. Test at the parent when the contract involves parent-computed ViewInputs, wrapper routing, a lifted Command, or the parent's response to an OutMessage.
+
+### Test Cross-Feature Flows at the Root
 
 Keep root Scene tests for flows that cross features or pages. Split several root flows by subject, such as `checkout.scene.test.ts` and `cart.scene.test.ts`.
 

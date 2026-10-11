@@ -8,9 +8,15 @@ Import client modules from `effect/http`, their path in Effect 4 stable.
 
 ## Why Propagation Is Off
 
+### Server Default
+
 Effect records an `http.client` span for each request. Its standard Fetch client also propagates the span context through `traceparent` and `b3` request headers. That default suits a server calling downstream services that participate in the same distributed trace.
 
+### Browser CORS
+
 In a browser, those extra headers can turn an otherwise CORS-simple cross-origin request into a preflighted request. `Http.layer` disables propagation so tracing alone does not change the request's CORS behavior.
+
+### Local Spans
 
 Local observability remains intact. The `http.client` span still records request method, URL, and status, and a Foldkit app nests it under the Command span. Only the outgoing trace-context headers are removed.
 

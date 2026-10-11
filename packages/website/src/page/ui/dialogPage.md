@@ -73,9 +73,15 @@ See [Folding Update with Update.foldChild](/core/submodel#fold-child) for the ge
 
 ## Accessibility
 
+### Focus and Modal Isolation
+
 When the Dialog opens, Foldkit marks surrounding content inert and `aria-hidden="true"`, and sets `aria-modal="true"` on the Dialog. Keyboard focus stays inside until it closes, then the original inert and ARIA state is restored before focus returns to the element that opened it. The DevTools overlay remains interactive during development.
 
+### Names and Descriptions
+
 The dialog always sets `aria-labelledby` on the native element. Set `hasDescription: true` when you render a description to add `aria-describedby`; leaving it false prevents a dangling reference when no description is present. Spread `...title` onto your heading (`h.h2([...title], [...])`) and `...description` onto your description element (`h.p([...description], [...])`). You never construct either id yourself.
+
+#### Reuse the Managed IDs
 
 The ids are framework-managed (the `-dialog-title`, `-dialog-description`, and `-panel` suffixes on the configured id). Going through the render info keeps them unique for you. The `Dialog.titleId(model)` and `Dialog.descriptionId(model)` helpers return the same ids as plain strings for the cases where you need the id as a value outside `toView`, such as a Command that calls `getElementById` or a cross-element reference. As a backstop, the runtime warns on any duplicate id in the rendered tree in development.
 

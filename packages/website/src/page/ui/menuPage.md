@@ -4,6 +4,8 @@
 
 A dropdown menu for actions, like a macOS context menu. Menu is fire-and-forget: each activation is an action, not a choice that persists (use Listbox for selection, where the parent owns the selected value). It supports typeahead search, drag-to-select, keyboard navigation, grouped items, and anchor positioning.
 
+### Programmatic Helpers and Bundle Type
+
 Programmatic helpers are child entry points. Fold the factory's `open` and `close` helpers with `Update.foldChildStep`. Fold `selectItem` with `Update.foldChild` because it takes the selected item and index as input.
 
 What `Menu.create<Item>()` returns is typed [`Menu.Bundle<Item>`](/ui/selection-submodels#bundle-type), for the cases where a created bundle has to be named rather than called directly.
@@ -34,7 +36,11 @@ Pass `isAnimated: true` at init for animation coordination.
 
 Menu is headless. The `itemToConfig` callback controls all item markup. Group items with `itemGroupKey` and `groupToHeading`.
 
+### Portaled Panels
+
 The items panel is portaled to the document body and positioned relative to the trigger button with Floating UI. Ancestor stacking contexts and overflow clipping no longer apply, so a clipped container or a sibling overlay wrapper cannot hide an open menu. The panel still stacks at the document level: give it a z-index above elevated content like sticky headers or toasts, as the demos on this page do with `z-10`. Inside a `<dialog>`, the panel is portaled into that dialog, so it renders above the dialog's content and stays interactive. Pass `anchor: { portal: false }` to keep the panel inside the wrapper.
+
+### Animated Panels
 
 When `isAnimated` is true, enter/leave animations flow through the [Animation](/ui/animation) module. Style with CSS transitions or CSS keyframe animations. Animation advances once every animation on the element has settled.
 
@@ -62,6 +68,8 @@ Menu uses `aria-activedescendant`. Focus stays on the items container while arro
 ## Accessibility
 
 The button receives `aria-haspopup="menu"` and `aria-expanded`. The items container receives `role="menu"` with `aria-activedescendant`. Each item receives `role="menuitem"`.
+
+### Naming the Trigger
 
 Give the trigger an accessible name. For a visible label, wire a native `<label for>` that targets the trigger id with `Menu.buttonId(id)` rather than hardcoding the `-button` convention. The `for` association makes the trigger properly labeled: assistive technology announces it by the visible label text, and clicking the label opens the menu. That is why it is the recommended pattern.
 

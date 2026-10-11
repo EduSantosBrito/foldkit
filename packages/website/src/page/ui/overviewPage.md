@@ -14,7 +14,11 @@ Foldkit UI is a set of headless, accessible UI components. You provide markup an
 
 Components are either stateful Submodels or stateless render helpers.
 
+### Stateful Submodels
+
 Stateful [Submodels](/core/submodel), including Menu, Listbox, Combobox, Calendar, Dialog, and Popover, have their own Model, Message union, update, and OutMessage. Embed them with `h.submodel` and fold their OutMessages into the parent update.
+
+### Stateless Render Helpers
 
 Stateless render helpers, including Button, Input, Textarea, Select, Checkbox, Switch, Disclosure, Fieldset, and Nav, take a `ViewConfig` and your builder and return Html. They bundle ARIA, data, and event attributes for DOM elements that you render. They need no child Model or `h.submodel` wiring. The builder determines the Message type returned by their callbacks, so you do not provide a Message type argument.
 

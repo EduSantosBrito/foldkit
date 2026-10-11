@@ -6,15 +6,21 @@ Built on Effect. Architected like Elm. Written in TypeScript. Let’s get your f
 
 Before you begin, install Node.js 22.22.2 or newer and make sure the package manager you want to use is available. The [create-foldkit-app](https://github.com/foldkit/foldkit/tree/main/packages/create-foldkit-app) scaffolder is the recommended way to start.
 
+### Run the Scaffolder
+
 Run the scaffolder:
 
 ::Snippet{name="getStartedCreateProject" label="Create a Foldkit project"}
+
+### Choose a Rendering Mode
 
 The CLI asks for a project name, a rendering mode, and a package manager. If you choose a browser-only SPA, it also asks which [example](/example-apps) you want to start from. The other rendering modes create their own starter applications:
 
 - **SPA:** renders entirely in the browser.
 - **[Static generation](/core/server-rendering#build-time-ssg):** prerenders routes to static HTML, then hydrates them in the browser.
 - **[Server rendering](/core/server-rendering):** renders each request on a Node server, then hydrates it in the browser.
+
+### Start the Development Server
 
 The scaffolder creates the project and installs its dependencies. Move into the new directory, then start the development server with the package manager you selected:
 
@@ -29,7 +35,11 @@ Vite prints a local URL when the server is ready. Open it in your browser, and y
 
 ## Find Your Way Around {#project-structure}
 
-The exact files depend on the rendering mode and starter example. A small browser-only SPA such as Counter begins with these pieces:
+The exact files depend on the rendering mode and starter example. The small browser-only Counter SPA shows the usual split.
+
+### Application Files
+
+The Counter starter begins with these files:
 
 - `src/main.ts`: pure application definitions
 - `src/entry.ts`: runtime bootstrap referenced by `index.html`
@@ -44,7 +54,11 @@ The exact files depend on the rendering mode and starter example. A small browse
 
 In a small starter, `src/main.ts` holds the Model, Messages, update, init, and view. Larger examples move those definitions into focused modules as the application grows.
 
+### Runtime Entry
+
 For the Counter starter, `src/entry.ts` imports the application definitions and starts the runtime with `Runtime.makeApplication` and `Runtime.run`. Other starters may compose the application from several modules or start a different host, but they keep runtime startup separate from the pure definitions. That separation lets tests import the application without starting a runtime as a side effect.
+
+### Project Scripts
 
 The generated project also includes `lint` and `format` scripts. Run them with your selected package manager. For example: `pnpm lint` and `pnpm format`. See [Oxlint Plugin](/tooling/oxlint-plugin) for the Foldkit-specific rules.
 

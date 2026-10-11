@@ -4,6 +4,10 @@
 
 A Subscription describes ongoing work whose lifetime comes from the Model. Each entry maps the Model to a dependency record, then maps those dependencies to a scoped `Stream<Message>`.
 
+### Dependency Changes
+
+#### Restarting the Scope
+
 The first dependency value opens the Stream's initial scope. After every Model update, Foldkit compares the latest dependencies with the previous value. Equivalent dependencies keep the current Stream alive. A change closes its scope, runs any registered `Effect.acquireRelease` finalizers, and opens a fresh scope with the new dependencies.
 
 ```diagram
@@ -39,9 +43,13 @@ first value                   later value
                                   update
 ```
 
+#### Event Sources and Scoped DOM State
+
 The Subscription is attached to the Model condition, not to the external source used inside its Stream. A timer, document listener, system theme observer, or `WebSocket` supplies events during that lifetime. Those events flow back into update as Messages.
 
 A Subscription may also maintain scoped DOM state without emitting Messages. During a drag, the production [documentDragStyles](https://github.com/foldkit/foldkit/blob/main/packages/ui/src/internal/documentDragStyles.ts) Stream installs temporary selection and cursor rules in its own `<style>` element and removes that element when the drag ends. Existing document styles are untouched.
+
+### Lifecycle Ownership
 
 Choose the lifecycle primitive by what owns the work:
 
@@ -57,6 +65,8 @@ Commands describe one-shot work that produces one result. Subscriptions describe
 
 ::Snippet{name="counterAutoCount" label="Auto-counting Subscription"}
 
+### Defining Entries
+
 `Subscription.make<Model, Message>()` receives a function that builds a named record of entries. Each call to `entry` takes two arguments:
 
 - A field map defining the dependency Schema, in the same shape passed to `Schema.Struct`.
@@ -65,6 +75,8 @@ Commands describe one-shot work that produces one result. Subscriptions describe
 `modelToDependencies` extracts the values that control the entry. `dependenciesToStream` creates its Stream. Foldkit compares the extracted record structurally by default, so unrelated Model updates do not restart the timer.
 
 When `isAutoCounting` changes to `true`, the new Stream starts ticking. When it changes back to `false`, the active scope closes and the timer stops.
+
+### Wiring the Runtime
 
 Defining `subscriptions` is only half of the setup. Pass the record to `makeApplication` or no streams start. The field is optional, so omitting it still produces a valid application without Subscription behavior.
 
@@ -80,7 +92,11 @@ The helper returns a complete entry with `{ isActive: boolean }` dependencies. I
 
 ::Snippet{name="subscriptionAnimationFrame" label="Animation frame"}
 
-Use the delta to make motion independent of refresh rate. Convert the milliseconds to seconds before multiplying a per-second velocity, so the simulation behaves consistently at 60Hz, 120Hz, and after a background tab regains focus.
+### Frame Deltas
+
+Use the animation frame delta to make motion independent of refresh rate. Convert the milliseconds to seconds before multiplying a per-second velocity, so the simulation behaves consistently at 60Hz, 120Hz, and after a background tab regains focus.
+
+### Animation Frames and Timers
 
 Use `Stream.tick` for discrete wall-clock steps that should occur every N milliseconds. It emits once when its scope opens, so add `Stream.drop(1)` when the first step should wait for the interval to elapse. `Subscription.animationFrameEntry` follows the display; `Stream.tick` follows elapsed time. The [canvas-art example](/example-apps/canvas-art) uses animation frames for per-frame physics, while the [snake example](/example-apps/snake) uses `Stream.tick` for game cadence.
 
@@ -117,6 +133,8 @@ Most entries should use the first `dependencies` argument directly. Reach for `r
 ## Lifting Subscriptions
 
 When a parent embeds a Submodel with Subscriptions, the parent must lift the child's Messages into its own Message type. `Subscription.lift` composes the entire record in one call. Its `read` returns an `Option` of the child Model, matching `Update.foldChild` and `ManagedResource.lift`. Returning `None` stops every child Stream without reading child dependencies. Wrap an always-present child in `Option.some`.
+
+### Gating Child Subscriptions
 
 The optional `when` field lets the parent add a condition the child cannot see, such as whether the child's page is the active route. One predicate can gate the whole record, or a map can gate selected entries. The child continues to own its own dependencies. See [Subscription Organization](/patterns/subscription-organization) for the complete composition pattern.
 

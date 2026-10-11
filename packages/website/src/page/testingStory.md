@@ -8,6 +8,8 @@ The entire test is one `story` call. Start from a Model, send a Message, resolve
 
 ## The API
 
+### Import Story Steps
+
 Import the steps you need from `foldkit/story`.
 
 - Top-level steps start the test, group reusable setup, send Messages, and inspect results: `story`, `steps`, `given`, `message`, `model`, `expectOutMessage`, and `expectNoOutMessage`.
@@ -16,6 +18,8 @@ Import the steps you need from `foldkit/story`.
 Use named imports when the file contains only Story tests. If a file contains both Story and Scene tests, import the namespaces from `foldkit` so `Story.given` and `Scene.given` stay distinct.
 
 ::Snippet{name="testingApi" label="API reference"}
+
+### Match Commands by Definition or Instance
 
 A Command matcher accepts either a Definition or an instance. A Definition matches by name. An instance also checks structurally equal arguments.
 
@@ -34,6 +38,8 @@ Here’s a test for the delayed reset from the [Commands](/core/commands) page. 
 Read it from top to bottom. The Model starts at 5. `ClickedResetAfterDelay()` returns `DelayReset`. The test resolves that Command with `CompletedDelayReset()`, which update handles by setting the count to 0.
 
 ## Multi-Step Flows
+
+### Resolve Commands in Order
 
 Keep each Command result next to the Message that caused it. `Command.resolve`, `Command.resolveAll`, and `Command.resolveAllExact` let a longer test stay chronological:
 
@@ -67,7 +73,11 @@ Do not use Effect's `flow` to group Story steps. Message and OutMessage steps ar
 
 ## Testing Side Effects
 
+### Test Returned Commands
+
 Story tests the state machine. It does not run the Effect inside a Command.
+
+### Test Command Effects
 
 To test that a Command’s Effect works correctly (for example, that an HTTP request parses the response right), test it separately with `Effect.provide` and a mock service layer:
 

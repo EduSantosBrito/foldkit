@@ -48,13 +48,25 @@ A read-only textarea still takes focus and allows selection and copying. Typing 
 
 ## Accessibility
 
+### Labels and Descriptions
+
 Textarea provides the same ARIA wiring as Input. The `label` group links via `for`, and the `description` group always includes an id. Set `hasDescription: true` when that element is rendered so the textarea references it through `aria-describedby`; leaving the option false prevents a dangling reference. You can access the description ID directly with `Textarea.descriptionId(id)`.
+
+### Invalid State
 
 When `isInvalid` is true, `aria-invalid="true"` is set on the textarea element.
 
+### Read-Only and Disabled States
+
+#### Read-Only Textareas
+
 `isReadOnly` sets the native `readonly` attribute, so the browser exposes the read-only state to assistive technology without any extra ARIA. The value stays focusable, selectable, and copyable, and the field is still submitted with its form.
 
+#### Disabled Textareas
+
 `isDisabled` sets the native `disabled` attribute instead. A disabled textarea is not focusable and is left out of form submission. Use `isReadOnly` when the value still matters to the user and only editing is blocked, and `isDisabled` when the field is unavailable.
+
+#### Combining States
 
 The two flags are independent. Setting both emits both attribute sets, and either one on its own removes the input handler. Browsers give `disabled` precedence when both are present.
 

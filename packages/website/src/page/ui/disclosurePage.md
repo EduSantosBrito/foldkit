@@ -30,6 +30,8 @@ A collapsed preview keeps some of its panel visually on screen while closed. Pas
 
 The preview is visual only. While the disclosure is closed, `animatePanel` marks the whole panel inert and hides it from assistive technology. Links, buttons, and other controls inside the panel cannot receive focus or interaction until it opens. Keep controls that must remain available, such as a code block's copy button, outside the panel.
 
+#### Choose a Preview Height
+
 Choose a CSS height that follows the content's typography. The example uses `6rem`; an `em` value follows the panel's own font size.
 
 ## Styling
@@ -50,9 +52,13 @@ Use the `data-open` attribute to style the button and panel differently when ope
 
 ## Accessibility
 
+### Panel Visibility
+
 The toggle button receives `aria-expanded` and `aria-controls` linking to the panel. Toggling is user-driven, so focus stays on the button the user activated; there is no focus Command to handle in update.
 
 An animated panel stays mounted so its height can transition. While the disclosure is closed, `animatePanel` makes that mounted content inert and hides it from assistive technology. With `peek`, sighted users see a visual preview, while other users encounter the collapsed trigger and receive the complete panel after opening it.
+
+### Naming the Toggle
 
 Give the toggle an accessible name when its content is not self-describing. For a visible label, wire a native `<label for>` that targets the toggle id with `Disclosure.buttonId(id)` rather than hardcoding the `-button` convention. The `for` association makes the toggle properly labeled: assistive technology announces it by the visible label text, and clicking the label opens the disclosure. That is why it is the recommended pattern.
 

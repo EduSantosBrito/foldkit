@@ -34,7 +34,11 @@ Pointer drag needs document-level `pointermove` / `pointerup` tracking (the curs
 
 Slider exposes its state and geometry through data attributes. The root and track carry `data-orientation` plus either `data-horizontal` or `data-vertical`. The track also carries `data-thumb-alignment`. `data-dragging`, `data-disabled`, and `data-readonly` identify the current interaction state.
 
+### Center the Thumb on the Value
+
 The filled track uses inline `width` for a horizontal Slider and `height` for a vertical one. By default, the thumb's center sits on the value point and may extend beyond the track at either end.
+
+### Keep the Thumb Inside the Track
 
 Set `thumbAlignment` to `Edge` and provide the rendered `thumbSize` to keep the thumb inside the track. Click-to-jump and drag then use the same inset range as the thumb, so the pointer position and rendered value remain aligned.
 
@@ -66,13 +70,21 @@ Every key in this table is inert when `isDisabled` or `isReadOnly` is true, beca
 
 The thumb receives `role="slider"`, `aria-valuemin`, `aria-valuemax`, `aria-valuenow`, and `aria-orientation`. When `formatValue` is provided, the formatted string is announced via `aria-valuetext`. By default the thumb is labeled via `aria-labelledby` pointing at the id carried on the `label` attribute group; you can override this with an explicit `ariaLabel` or `ariaLabelledBy`.
 
+### Read-Only and Disabled States
+
 `isReadOnly` and `isDisabled` both stop the Slider from reacting to pointer drags and keys. They differ in the semantics exposed to assistive technology, so they are not interchangeable.
 
+#### ARIA Semantics
+
 `aria-disabled="true"`, which `isDisabled` emits, communicates that the Slider is unavailable. `aria-readonly="true"`, which `isReadOnly` emits, communicates that its value cannot be changed but remains relevant to the user. It sits on the thumb, the element carrying `role="slider"`. Both states keep `tabindex="0"`, following Foldkit's convention that unavailable controls remain discoverable by keyboard and assistive technology.
+
+#### Choosing a State
 
 Assistive technology support for `aria-readonly` on sliders varies. Pair it with a visible read-only treatment or explanatory text when users must distinguish it from disabled, and test the browser and assistive technology combinations your app supports.
 
 Use `isReadOnly` when the value is still information the user needs, such as a level set by another control, and `isDisabled` when the Slider is unavailable.
+
+#### Combining States
 
 The two flags are independent. Setting both emits both sets of attributes, and either one on its own removes the pointer and keyboard handlers.
 

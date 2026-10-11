@@ -85,7 +85,7 @@ const sectionHeadingConfig = {
   },
   h4: {
     textClassName:
-      'text-base font-mono font-normal text-gray-900 dark:text-white scroll-mt-6',
+      'font-sans font-medium text-lg leading-snug tracking-tight text-gray-900 dark:text-white scroll-mt-6',
     wrapperClassName:
       'group flex items-center gap-1 md:hover-capable:gap-0 mt-10 mb-3 md:hover-capable:flex-row-reverse md:hover-capable:justify-end md:hover-capable:-ml-[1.5rem]',
   },

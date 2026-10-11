@@ -12,11 +12,17 @@ The same Runtime data also powers [DevTools](/core/devtools). DevTools presents 
 
 Treat DevTools MCP as privileged access to the running application. A connected agent can read the current, initial, and retained historical Models; every retained Message payload; and the arguments passed to recorded Commands and Mounts. Anything returned by one of those tools enters the agent's context.
 
-Keep API keys, passwords, access and refresh tokens, authorization headers, session material, and private personal data out of those values. A credential used by browser code is already available to someone controlling that browser, so long-lived secrets belong behind a server boundary even when DevTools MCP is disabled. This includes local demos: use fake, scoped, or disposable credentials instead of a production secret.
+### Keep Credentials Out of Runtime Data
+
+Keep API keys, passwords, access and refresh tokens, authorization headers, session material, and private personal data out of the Runtime data DevTools MCP can inspect. A credential used by browser code is already available to someone controlling that browser, so long-lived secrets belong behind a server boundary even when DevTools MCP is disabled. This includes local demos: use fake, scoped, or disposable credentials instead of a production secret.
+
+### Redaction and History Controls
 
 When the browser must temporarily carry a sensitive value, represent it with Effect's `Redacted` type. Use a `Schema.Redacted` field with `disallowJsonEncode: true`, construct its value with `Redacted.make`, and recover it only where the application must use it. `Redacted` prevents normal string, JSON, and inspection output from revealing the value. It does not encrypt the value or make a browser-side credential secret from the person running the browser.
 
 `excludeFromHistory` is not a redaction control. It removes the named Message from history, but the resulting Model remains available through current and historical Model inspection. Omitting `DevToolsConfig.Message` disables agent dispatch only; every inspection and replay tool remains available.
+
+### Disable MCP Connections
 
 To keep the in-browser DevTools while preventing MCP connections, set `devToolsMcpPort: false` in the Foldkit Vite plugin options. Set `devTools: false` in the application config to disable DevTools recording and its browser bridge too.
 
@@ -28,11 +34,15 @@ New projects already include `@foldkit/devtools-mcp` and a `.mcp.json` entry nam
 
 ### Existing Projects
 
+#### Initialize the Project
+
 Run the init command in the project root:
 
 ::Snippet{name="aiMcpInit" label="Initialize the DevTools MCP server"}
 
 The command creates `.mcp.json`, or updates only the `foldkit-devtools` entry when the file already exists. Other configured MCP servers remain unchanged.
+
+#### Install the Server Locally
 
 Install the server as a development dependency when you want to avoid an `npx` lookup each time the agent starts:
 
@@ -40,15 +50,21 @@ Install the server as a development dependency when you want to avoid an `npx` l
 
 No Vite config change is needed. The Foldkit plugin serves the relay at `/__foldkit/devtools-mcp` on the dev server, and the MCP server finds it by project.
 
+#### Configure a Fixed Port
+
 If automatic discovery is unavailable, set a fixed `devToolsMcpPort` in `vite.config.ts` and give the MCP server the same value in `FOLDKIT_DEVTOOLS_MCP_PORT`. This is required on Windows:
 
 ::Snippet{name="aiMcpViteConfig" label="Vite configuration for a fixed port"}
+
+#### Enable Message Dispatch
 
 To let an agent dispatch Messages, pass the application's `Message` Schema to `Runtime.makeApplication`:
 
 ::Snippet{name="aiMcpApplicationConfig" label="Application configuration"}
 
 Inspection and replay tools work without the Schema. Dispatch tools reject every request until it is configured.
+
+#### Connect the Agent and Browser
 
 Restart the AI agent so it reads `.mcp.json`. The tools appear under the `foldkit-devtools` server.
 
@@ -80,15 +96,23 @@ Every tool except `foldkit_list_runtimes` accepts an optional `runtime_id`. With
 
 The browser bridge runs alongside DevTools and subscribes to the DevTools store. The Vite plugin relays requests between browser tabs and MCP clients through a WebSocket endpoint on the dev server. The MCP server runs under your AI agent and finds the relay for the project it runs in. `FOLDKIT_PROJECT_ROOT` selects another project.
 
+### Relay Discovery and Access
+
 The plugin publishes the relay's address to a registry private to your user. The address includes a random token that every client must present before inspecting a Model or dispatching a Message. The plugin refuses to publish into a directory owned by another user or readable by other users. The registry lives under `XDG_RUNTIME_DIR` when set, or under the operating system's temporary directory. `FOLDKIT_DEVTOOLS_RELAY_DIRECTORY` selects another directory.
 
 The token keeps an unapproved relay client from connecting. It does not hide runtime data from the agent that was given the MCP server.
 
+### Fixed-Port Connections on Windows
+
 On Windows, the plugin cannot verify registry directory ownership, so it cannot publish an address. Set `devToolsMcpPort` in the Vite config and pass the same port in `FOLDKIT_DEVTOOLS_MCP_PORT`. This opens a separate socket on every interface without a token. Do not use a fixed port on a shared or untrusted network. `FOLDKIT_DEVTOOLS_MCP_PORT` also skips discovery on other platforms.
+
+### Reconnection and Runtime Selection
 
 When several relays match the project, the MCP server chooses the most recently started one. If the dev server restarts, the MCP server looks it up again and reconnects with exponential backoff. The agent can also start before the dev server.
 
 More than one browser tab can connect at once. `foldkit_list_runtimes` returns each connection ID, and `runtime_id` selects one explicitly. When a tab closes, the relay removes it from the live Runtime list.
+
+### Message Decoding
 
 Messages stay as Effect Schema values across the connection. Before dispatching, an agent can call `foldkit_get_message_schema` for the top-level variants and then inspect the payload shape of the variant it needs. The Runtime decodes the constructed value before it reaches update. A batch is fully decoded before its first Message is dispatched.
 

@@ -43,7 +43,11 @@ The `fill` attribute group carries an inline `width` matching the value's positi
 
 The meter element receives `role="meter"`, `aria-valuemin`, `aria-valuemax`, and `aria-valuenow`. By default, it is named through `aria-labelledby`, which points to the id carried by the `label` attribute group. Use `ariaLabel` when there is no visible label, or `ariaLabelledBy` to reference a different labeling element. When both overrides are provided, `ariaLabel` takes precedence.
 
+### Value Announcements
+
 Use `valueText` when the number needs a natural-language equivalent. It accepts either a string or a `(value, max) => string` formatter and sets `aria-valuetext` from the clamped value.
+
+### Range Normalization
 
 Meter clamps `value` into `[min, max]`. If `max` is lower than `min`, it is normalized to `min` before any ARIA or data attributes are emitted, so the rendered range remains valid.
 

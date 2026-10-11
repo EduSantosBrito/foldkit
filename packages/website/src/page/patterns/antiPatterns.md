@@ -19,15 +19,21 @@ The sections below show how each problem appears in code and the Foldkit design 
 
 ## Make Impossible States Unrepresentable
 
+### Contradictory Fields
+
 Imagine a screen that can be idle, loading, showing data, or showing an error. Representing those mutually exclusive states in separate fields allows the Model to describe impossible combinations.
 
 ::Snippet{name="antiPatternMutuallyExclusiveStateBad" label="❌ Separate fields can contradict one another" class="mb-4"}
 
 Every handler must now remember which fields to set and which fields to clear. If one handler forgets, view and update receive a state the application never intended to support.
 
+### One State Union
+
 Use one discriminated union when only one state can be active. Each variant carries exactly the data available in that state.
 
 ::Snippet{name="antiPatternMutuallyExclusiveStateGood" label="✅ One union permits only valid states"}
+
+### Choose the State Shape
 
 See [State with Variants](/core/model#state-with-variants) for the general Foldkit pattern. [AsyncData](/core/async-data) provides the usual remote-data states.
 
@@ -35,9 +41,13 @@ For smaller custom flows, enforce legal transitions in an exhaustive Message mat
 
 ## Store Each Piece of State Once
 
+### Stored Derived State
+
 Suppose the Model stores `items`, the current `query`, and a filtered copy named `visibleItems`. Every handler that changes either `items` or `query` must also update `visibleItems`.
 
 ::Snippet{name="antiPatternDuplicatedStateBad" label="❌ Stored derived state can become stale" class="mb-4"}
+
+### Derive from Source State
 
 The source fields and `visibleItems` now give two answers to the same question: which items should be shown. Store only `items` and `query`, then derive the filtered collection when the view needs it.
 
@@ -47,13 +57,19 @@ The same rule applies outside derived collections. Browser storage may persist a
 
 Copying parent-owned data into a child Model just so the child can render it also creates two sources of truth. Pass that data through the child's `viewInputs` instead. When child update needs current parent context while handling its own Message, pass the value through update's third `context` argument. Use a public child helper when a parent-owned change must trigger a child transition.
 
+### Cache Only After Profiling
+
 Cache a derived Model value only after profiling shows that deriving it is expensive. If the cost comes from building or diffing the view, prefer [view memoization](/core/view-memoization). A value users can change independently is domain state, not a cache. The [performance guide](/faq/performance#the-optimization-toolkit) compares Model caching with view memoization.
 
 ## Define the Model with Schema
 
+### Divergent Type and Schema
+
 Suppose a handwritten TypeScript type says that `session` contains a user, while the Model Schema accepts any value in that field. TypeScript lets update and view read `userId`, but the decoder can produce a value with no `userId` at all.
 
 ::Snippet{name="antiPatternModelSchemaBad" label="❌ The type promises more than the Schema checks" class="mb-4"}
+
+### One Schema Source
 
 Define the Model with Schema and derive the TypeScript type from it. The decoder and the type checker then agree on the Model's shape.
 
@@ -63,9 +79,13 @@ Deriving the Model type from its Schema matters even when the application does n
 
 ## Keep Effects Out of init, update, and view
 
+### Effects Inside Pure Functions
+
 Calling `fetch` inside view starts another request whenever Foldkit renders that view. Reading `Date.now()` or `Math.random()` inside init or update lets the same inputs produce a different Model. Writing to the DOM or browser storage inside update repeats that write when DevTools replays the Message.
 
 ::Snippet{name="antiPatternEffectInUpdateBad" label="❌ DOM effect inside update" class="mb-4"}
+
+### Return Work to the Runtime
 
 Keep init, update, and view deterministic. The `ClickedOpenDialog` handler should set `dialogState` to `Open` and return a `FocusSearchInput` Command.
 
@@ -77,7 +97,11 @@ Use [Flags](/core/init-and-flags#flags) when the initial Model needs outside dat
 
 ## Keep Live Handles Behind Runtime Boundaries
 
+### Handles Outside the Runtime
+
 Imagine a chat screen that needs a `WebSocket` only while the visitor is in a room. Opening the socket inside update and storing it in a module variable puts it outside the Runtime's lifecycle. The Runtime therefore cannot close it when the visitor leaves the room, and replaying the Message in DevTools can open another connection.
+
+### Runtime-Owned Resource Lifetimes
 
 Storing the socket in the Model does not give it a Runtime-controlled lifetime. The live connection cannot be recreated from the Model Schema after a development reload, and update would still be responsible for opening and closing it. Keep the room and connection status in the Model, and let a ManagedResource own the `WebSocket` itself.
 
@@ -86,6 +110,8 @@ Storing the socket in the Model does not give it a Runtime-controlled lifetime. 
 ::Snippet{name="antiPatternLiveHandleGood" label="✅ A ManagedResource owns the WebSocket lifetime"}
 
 ManagedResource fits when Commands or Subscriptions need the typed handle. In this example, `acquire` returns the Effect that creates the socket, and `release` returns the Effect that closes it when the room requirements disappear. The Runtime performs both Effects. When the Runtime performs `SendChatMessage`, that Command's Effect retrieves the live `ChatSocket`. When the socket only produces an event stream, a Subscription can own the connection directly.
+
+### Choose by Cause and Lifetime
 
 Choose the boundary whose lifetime matches the work:
 
@@ -162,6 +188,8 @@ The old `FetchSuggestions` Command may finish just before the Interrupt runs, le
 
 ## Preserve Submodel Boundaries
 
+### Keep Transitions Inside the Child
+
 A parent stores a Submodel's Model, but the child owns every transition of that state. If the parent changes a child field directly, the child's update function does not run.
 
 ::Snippet{name="antiPatternSubmodelMutationBad" label="❌ The parent changes a child field directly" class="mb-4"}
@@ -169,6 +197,8 @@ A parent stores a Submodel's Model, but the child owns every transition of that 
 The direct change may skip validation, Commands, or OutMessages that the child needs. Importing an internal child Message does not fix the boundary: it turns that private event into an API the parent depends on.
 
 ::Snippet{name="antiPatternSubmodelMessageBad" label="❌ The parent constructs an internal child Message" class="mb-4"}
+
+### Keep the Complete Child Result
 
 Manually copying the child Model from a helper result causes a separate problem. The parent can keep the next child Model while silently discarding Commands returned with it.
 
@@ -181,6 +211,8 @@ Export a helper from the child for transitions the parent is allowed to request.
 `Update.foldChild` and `Update.foldChildStep` write the returned child Model into the parent and lift the child's Commands. When the child can emit OutMessages, pass `foldOutMessage` so the parent handles every variant instead of accidentally omitting one. The [Submodel guide](/core/submodel) explains child Messages and OutMessages. [Informing Submodels](/patterns/informing-submodels) covers parent-owned facts that a child needs to hear about.
 
 ## Fold Child Initialization Results Completely
+
+### Fold One Child Result
 
 A child `init` or `boot` can return a Model, Commands, and an OutMessage. Here, `Settings.boot` applies a Message through `update` and returns all three:
 
@@ -195,6 +227,8 @@ Both parent examples below use this same Settings Submodel. Copying its Model an
 ::Snippet{name="antiPatternChildInitGood" label="✅ Fold the child result and compose parent-owned Steps"}
 
 The helper lifts the child's Commands, then runs the OutMessage fold against the completed parent Model. Its returned Command array puts lifted child Commands before Commands from the fold; the Runtime starts those Commands independently, so array order does not sequence their execution or completion. See [Folding Update](/core/submodel#fold-child) and [Composing Update Steps](/core/update#composing-update-steps).
+
+### Fold Several Independent Child Results
 
 Assembling one complete parent Model from several independent child init results is valid. Use `Update.foldChildInits` to construct that Model once and handle each child's OutMessage against it. Each local fold receives the Model produced by the preceding fold, so later folds preserve earlier changes:
 

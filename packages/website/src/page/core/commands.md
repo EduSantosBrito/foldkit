@@ -18,6 +18,8 @@ The counter has returned an empty Commands array so far. A delayed reset puts th
 
 When `ClickedResetAfterDelay` arrives, update keeps the Model unchanged and returns `DelayReset()`. The runtime waits one second, then dispatches `CompletedDelayReset`. That new Message reaches update, which resets the count to zero.
 
+### Definition Fields
+
 `Command.define` gives the work a name and a result contract. A definition has three required parts:
 
 - `messages` lists every Message the Command may produce.
@@ -25,6 +27,8 @@ When `ClickedResetAfterDelay` arrives, update keeps the Model unchanged and retu
 - The first argument names the Command for DevTools, traces, and tests.
 
 Two optional fields extend that contract. `args` defines a Schema for inputs that vary by dispatch. `interrupt` makes in-flight work explicitly interruptible.
+
+### Command and Result Names
 
 Command names are verb-first imperatives such as `FetchWeather`, `FocusItems`, and `LockScroll`. A Command names work for the runtime to perform. Its result Message records what happened, using a past-tense name such as `SucceededFetchWeather`, `FailedFetchWeather`, or `CompletedLockScroll`.
 
@@ -44,7 +48,11 @@ The same structure applies to network work. This version asks an API for the nex
 
 ::Snippet{name="counterHttpCommand" label="HTTP Command"}
 
+### Handling Request Results
+
 `FetchCount` obtains `HttpClient` from the Effect context, executes the request, and decodes the response with Schema. Success produces `SucceededFetchCount`. `Effect.catch` converts failures into `FailedFetchCount`, so a failed request becomes another fact for update to handle instead of crashing the application.
+
+### Providing the HTTP Client
 
 `Effect.provide(Http.layer)` supplies Foldkit's Fetch-backed client with trace-header propagation disabled. Effect enables those headers by default, which can trigger browser CORS preflights against APIs and development proxies. A test can provide a mock client instead.
 
@@ -103,6 +111,8 @@ Wait for cancellation to finish before starting the replacement. Commands return
 
 The first `UpdatedQuery` received while a request runs increments `generation`, enters `Cancelling`, and returns one Interrupt. Incrementing the generation makes the old request's result stale before cancellation begins. More query changes replace `model.query` without dispatching another Interrupt. When cancellation completes, the handler reads the latest query and starts one replacement with the current generation.
 
+#### Rejecting Stale Results
+
 The result Message does not carry the outcome because `Interrupted` and `NotFound` mean the same thing here: the key is free. Each request carries its generation so a result that finished just before `NotFound` cannot overwrite newer suggestions, even when the user returns to the same query.
 
 ### Recording Why Cancellation Happened
@@ -113,7 +123,11 @@ Use a different result Message when cancellation records a different fact. Click
 
 Do not add a second behavior tag to one result Message. The Message records why cancellation completed; update chooses the follow-up. Data needed for that decision, such as `uploadId` or the newly selected file, belongs in the payload.
 
+#### Shared Cancellation Results
+
 Use one result Message when the meaning is the same. A per-row Cancel button and Cancel all both record `CompletedCancelUploadFile`; they only differ in how many keys they interrupt.
+
+#### Changing Intent During Cancellation
 
 If the desired follow-up can change before the Interrupt completes, store that intent in the Model. For example, a `CancellingToStop | CancellingToReplace` union lets a later Message replace the intent. The cancellation result then reads the current variant instead of obeying a decision captured earlier.
 

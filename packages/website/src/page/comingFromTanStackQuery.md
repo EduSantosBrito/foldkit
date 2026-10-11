@@ -27,7 +27,11 @@ Here is how common TanStack Query concepts map onto Foldkit:
 
 ## Async State Is Model State
 
+### Six Explicit States
+
 `AsyncData<A, E>` is a union of six states: `Idle`, `Loading`, `Refreshing`, `Failure`, `Stale`, and `Success`. `Refreshing` holds the previous data while a refetch is in flight. `Stale` holds the previous data after that refetch fails. Those variants make stale-while-revalidate and keep-stale-on-failure part of the value instead of conditions derived from several flags.
+
+### The Model as a Cache
 
 There is no separate query cache. The Model is the cache. A single resource lives in one `AsyncData` field. A collection of resources keyed by id lives in an `Schema.HashMap` of those fields. A cache hit is data the application already holds.
 
@@ -52,6 +56,8 @@ The table below maps the common online query states. TanStack Query exposes `sta
 | `isError && data !== undefined`                                          | `Stale({ error, data })` |
 | `isSuccess && !isFetching`                                               | `Success({ data })`      |
 
+### States Outside the Mapping
+
 A paused fetch uses `fetchStatus: 'paused'`, and placeholder data can produce a successful query before the real result arrives. `AsyncData` does not assign those behaviors automatically. If offline pause or placeholder provenance affects the interface, represent it in the Model alongside the `AsyncData` field.
 
 The difference is who tracks the combinations. In TanStack Query, failed data that remains available is a condition such as `isError && data !== undefined`. In Foldkit it is the `Stale` variant, and `AsyncData.match` requires the view to handle it. When a view only cares whether it has data, `matchData` collapses the six states into data, failure, and empty channels.
@@ -64,7 +70,11 @@ TanStack Query’s `isPending` means the query has no data and no error yet. Its
 
 `AsyncData` models the state of one request lifecycle. It does not decide which of two independent responses should win.
 
+### Guard Responses Against the Current Model
+
 Imagine a search starts a request for A, then starts a request for B before A returns. B finishes first. If the slower A response then overwrites it, the screen shows results for a query the user no longer wants.
+
+#### Carry Request Context
 
 Foldkit does not automatically cancel or order independent Commands. Thread the query through the Command into its result Message, then compare it with the current Model before accepting the result:
 
@@ -76,7 +86,9 @@ The late response for A sees that its `query` no longer matches `queryInput`, so
 The guard is application policy, not incidental boilerplate. “Newest request wins” has to live somewhere. In Foldkit it is an explicit comparison against the current Model, in the same update function that decides what the result does.
 :::
 
-This snippet also shows where `keepPreviousData` belongs. `UpdatedQuery` currently moves the field to `Loading`, which removes the previous results while the new query runs. To retain them, move a data-holding state to `Refreshing({ data })` instead.
+### Retain Data or Interrupt Superseded Work
+
+Foldkit handles `keepPreviousData` as a Model transition. `UpdatedQuery` currently moves the field to `Loading`, which removes the previous results while the new query runs. To retain them, move a data-holding state to `Refreshing({ data })` instead.
 
 When a superseded request is expensive or the user can cancel it, define the Command with an `interrupt` field and dispatch its `Interrupt` Command. Keep the receipt-time check as well, because a result may already be queued when the interrupt arrives. See [Interrupting Commands](/core/commands#interrupting-commands).
 

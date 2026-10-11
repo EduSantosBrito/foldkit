@@ -6,6 +6,8 @@ This comparison uses the same [pixel art editor](/example-apps/pixel-art) in Fol
 
 The React version uses React 19.2, `useReducer`, [Headless UI](https://headlessui.com), custom Hooks, and manual memoization. The Foldkit version uses a Model, Messages, update, Commands, Subscriptions, Foldkit UI Submodels, and view memoization.
 
+### What This Comparison Covers
+
 This is a comparison of those two implementations. React applications can choose other state and effect architectures, and Foldkit applications can still be structured well or poorly within the framework’s constraints. The useful question is what each implementation makes explicit and what each framework makes unavoidable.
 
 React can recreate many of Foldkit’s boundaries with libraries and conventions. Foldkit begins with those boundaries and builds its Runtime, DevTools, and tests around them. That is the argument this page puts under pressure.
@@ -234,6 +236,8 @@ The React custom Hooks express the same lifetime with Effects:
 
 Both applications use controlled values for selections and Dialog visibility. They differ in where transient component interaction state lives.
 
+### State Ownership Comparison
+
 |                              | Foldkit UI                                                  | React + Headless UI                                 |
 | ---------------------------- | ----------------------------------------------------------- | --------------------------------------------------- |
 | Selected values / open state | Parent Model                                                | Reducer state passed through controlled props       |
@@ -241,6 +245,8 @@ Both applications use controlled values for selections and Dialog visibility. Th
 | Events                       | Child Messages and OutMessages folded through parent update | Callback props such as `onChange` and `onClose`     |
 | Accessibility behavior       | Implemented by Foldkit UI                                   | Implemented by Headless UI                          |
 | Debugging                    | Parent and child Models appear in Foldkit DevTools          | App state and component internals use React’s tools |
+
+### Visible and Encapsulated State
 
 Foldkit exposes more of the component state as application data. Headless UI deliberately hides more implementation state behind its component API. Neither choice changes who owns the selected palette theme or whether a Dialog is open in these two applications.
 
@@ -349,6 +355,8 @@ The difference remains placement. Foldkit sends each tick through update. React 
 Foldkit can persist undo history with a Command and restore it through init or an initialization Command. The React version can extend `useLocalStorage` or add an IndexedDB Hook and initialize reducer state from the stored value.
 
 Both versions need versioning, decoding, and failure behavior for stored data. Foldkit’s Schema and Command result Messages provide built-in places for those concerns; React can use the validation and effect libraries the application selects.
+
+### How the Structures Grow
 
 Both applications can grow to support these features. The difference is whether each feature has to join an existing pipeline. Foldkit grows through the same named categories: Model fields, Messages, update handlers, Commands, Subscriptions, and Submodels. React grows through components, Hooks, reducer Actions, and any additional state or effect libraries the team chooses.
 

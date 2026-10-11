@@ -36,7 +36,11 @@ Tooltip is headless. The `toView` callback receives attribute bundles for the tr
 
 ## Accessibility
 
+### Tooltip Semantics
+
 The panel has `role="tooltip"` and the trigger is linked via `aria-describedby`. Focus is never moved into the tooltip, so assistive technology announces the panel contents as a description of the trigger.
+
+### Name the Trigger
 
 The tooltip describes the trigger but does not name it, so give the trigger an accessible name. For a visible label, wire a native `<label for>` that targets the trigger id with `Tooltip.triggerId(id)` rather than hardcoding the `-trigger` convention. The `for` association makes the trigger properly labeled: assistive technology announces it by the visible label text, and clicking the label focuses the trigger. That is why it is the recommended pattern.
 

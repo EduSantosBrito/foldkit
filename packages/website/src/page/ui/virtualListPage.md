@@ -32,9 +32,15 @@ Pass `itemToRowHeightPx` when the application already knows each row's exact hei
 
 ### End-anchored dynamic heights
 
+#### Configure the End Anchor
+
 For chat, logs, and reverse infinite feeds, combine an initial `End` target, `followEnd`, `contentAlignment: 'End'`, and `dynamicRowHeights`. Rows remain in logical DOM order with ordinary nonnegative `scrollTop` coordinates.
 
+#### Preserve the Visible Row
+
 Dynamic mode treats `rowHeightPx` as the default estimate. Rendered rows are measured with `ResizeObserver`; when estimates change, VirtualList corrects the scroll position around the stored stable-key anchor. Call `informItemsChanged` in the same parent update that appends, prepends, removes, or reorders items. Appends follow the end only while the user remains within the configured threshold. Once they scroll away, their visible anchor is preserved instead.
+
+#### Apply Targets After Items Load
 
 An initial index, key, offset, or end target remains pending if the list mounts before its items arrive. Notify VirtualList when the parent loads the items; it applies the target once a row can be rendered. An explicit later `scrollTo` request supersedes the initial target. The chat demo also uses the VirtualList scroll Message to add older rows when the viewport nears the start. In an app that fetches history, the parent owns the request Command; VirtualList keeps the visible keyed row in place when the data arrives.
 
@@ -44,9 +50,13 @@ An initial index, key, offset, or end target remains pending if the list mounts 
 
 ## Programmatic scrolling
 
+### Choose a Target
+
 `scrollToIndex`, `scrollToKey`, `scrollToOffset`, and `scrollToEnd` all create logical scroll requests. The next view selects the target window, then the Command aligns the live rendered row or applies the live maximum offset.
 
 Index and key helpers accept `Start`, `Center`, `End`, or `Nearest` alignment. `Nearest` leaves a fully visible row in place and otherwise reveals its closest edge. Missing keys produce no movement. Negative and oversized offsets clamp to the live scroll range.
+
+### Migrate Existing Calls
 
 Use `scrollToIndex` for every sizing mode; the view resolves each row's offset from its current height inputs. Replace old `scrollToIndexVariable(model, items, itemToRowHeightPx, index, options)` calls with `scrollToIndex(model, index, options)`.
 
@@ -54,17 +64,29 @@ Remove calls to `visibleWindow` and `visibleWindowVariable`. Those helpers no lo
 
 ## Lifecycle
 
+### Observe the Container
+
 VirtualList renders an `ObserveVirtualList` Mount on its scroll container. The Mount owns the scroll listener, container `ResizeObserver`, dynamic-row `ResizeObserver`, and descendant observation. Delete `VirtualList.subscriptions.containerEvents` from existing Subscription wiring. VirtualList no longer exports `subscriptions`, so TypeScript will identify any remaining callers.
 
+### Run Scroll Commands
+
 The Mount also supplies the live container to scroll Commands, so programmatic scrolling works when VirtualList is rendered inside a shadow root. Give every mounted VirtualList a distinct `id`, including lists in separate shadow roots; a scroll Command skips if multiple mounted lists share an `id`. Observation pauses while DevTools displays a historical view.
+
+### Handle Observations
 
 The Mount emits `ObservedContainerScroll` with the scroll position, scroll height, container height, and visible row anchor, and `ResizedContainer` with both container dimensions. Delete manual `ScrolledContainer` and `MeasuredContainer` dispatches; the Mount supplies those observations. Update exhaustive Message matches for the new variants.
 
 ## Styling
 
+### Constrain the Container
+
 The container needs a constrained height. Without it, the container grows to fit children and never scrolls. Use `containerClassName` or `containerAttributes` to apply that height.
 
+### Select the Container
+
 The scrollable container keeps its configured `id`. Use that for selectors instead of the removed `data-virtual-list-id` attribute.
+
+### Align Short Lists
 
 `contentAlignment: 'End'` adds a leading inset when all rows are shorter than the viewport, so an underfilled chat sits against the bottom. VirtualList disables native CSS scroll anchoring because its stable-key correction owns that behavior.
 

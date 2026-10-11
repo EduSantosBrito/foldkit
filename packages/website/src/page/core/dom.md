@@ -4,11 +4,17 @@
 
 An application may need to act on the document once after update or observe browser input while part of the UI is active. The `Dom` module provides Effects for one-time operations and Streams for ongoing input.
 
+### One-Time Effects
+
 Use a Dom Effect when a Message should cause a one-time DOM operation. For example: opening a dialog can return a Command that focuses its first input. The operation stays outside view, and its result still comes back through update as a Message.
+
+### Ongoing Streams
 
 Use a Dom Stream when browser events, media-query changes, or key bindings should produce Messages over time. A [Subscription](/core/subscriptions) runs ongoing work according to Model-derived dependencies. A [Mount](/core/mount) runs it while a rendered element exists.
 
 ## Using Dom Effects
+
+### Command Results
 
 Each Effect helper exposes its failure type in the Effect channel. `Dom.focus` returns `Effect.Effect<void, ElementNotFound>`, while helpers without an expected application failure, such as `Dom.lockScroll`, return `Effect.Effect<void>`.
 
@@ -16,11 +22,19 @@ Wrap the helper in a Command and map its success or failure into one of that Com
 
 ::Snippet{name="domFocus" label="Focusing an input from a Command"}
 
+### Commit and Paint Timing
+
 Most helpers that resolve a live element wait until Foldkit has committed the latest render before querying the DOM. This lets update return a Command for an element that the same Message just brought into the view. You do not need to add `Render.afterCommit` before `Dom.focus`, `Dom.showDialog`, `Dom.clickElement`, `Dom.scrollIntoView`, or `Dom.advanceFocus`.
+
+### Dialog Resources
 
 `Dom.showDialog` resolves to `true` when it installs the focus trap, return focus, stack entry, and optional modal isolation. It resolves to `false` when that Dialog id already holds those resources, so concurrent lifecycle recovery and application Commands do not acquire them twice.
 
+### Scrolling Timing
+
 Scrolling has two later-timing variants. `Dom.scrollIntoViewAfterPaint` waits until the target has been painted, which suits a route that just inserted a fragment target. `Dom.scrollIntoViewIfNotVisible` also waits through paint by default, but accepts `{ when: 'Commit' }` when the first visible frame should already be scrolled.
+
+### Immediate Helpers
 
 Cleanup and global-state helpers run immediately because they do not need a newly rendered target. These include `Dom.closeDialog`, `Dom.releaseDialogResources`, `Dom.lockScroll`, `Dom.unlockScroll`, and `Dom.restoreInert`. `Dom.waitForAnimationSettled` has its own timing contract: it checks the target's active Web Animations on the next animation frame and waits for them to settle.
 
@@ -59,6 +73,8 @@ Its `mapEvent` callback can produce any output type, including the raw event. A 
 
 ::Snippet{name="subscriptionFromEvent" label="Window keydown Stream in a Subscription"}
 
+#### Synchronous Event Mapping
+
 The `mapEvent` mapper runs synchronously in the same call stack as the browser event, so it may call `event.preventDefault()` unless the listener is passive. Some browsers default wheel and touch listeners on global targets to passive, where cancellation is ignored. Pass `options: { passive: false }` when cancelling those events. Pass `target` as a thunk if it may not exist until the scope opens; pass always-present globals such as `window` and `document` directly.
 
 #### Typed Event Targets
@@ -83,17 +99,27 @@ Cancellation must happen inside the listener callback. A downstream `Stream` ope
 
 `Dom.streamFromMediaQuery` creates a Stream from a CSS media query. When the Stream starts, it emits the query's current `matches` value through `mapMatches`. It emits again whenever the value changes. Handle those values as Messages in update to store the result in the Model. Most apps therefore do not need a separate `window.matchMedia` read at boot. An app that must use the value before its Subscriptions start, such as one that applies a theme before hydration, should still read it at boot.
 
+#### Current Values After a Restart
+
 Reading the current value also prevents stale state when a gated entry restarts. Suppose a color-scheme Subscription runs only while the theme preference is `System`. The user selects `Dark`, changes the operating system to a light theme, and then selects `System` again. A new `change` listener waits for the next change, so the Model still records a dark system theme. `Dom.streamFromMediaQuery` reads the current light value as soon as the Stream restarts.
 
 ::Snippet{name="subscriptionFromMediaQuery" label="Reduced motion media query"}
+
+#### Browser Access
 
 Creating the Stream does not access `window`; `window.matchMedia` is called only when the Stream starts. The same helper works for `prefers-reduced-motion`, `prefers-color-scheme`, and viewport breakpoints such as `(max-width: 1023px)`.
 
 ### Key Bindings
 
+#### Binding Syntax
+
 `Dom.streamFromKeyBindings` builds a `keydown` Stream from a declarative key-binding table. It listens on `document` by default; pass `target` to listen on a different `EventTarget`, including an element owned by a Mount. Use `keys` with a string for one press, such as `'Escape'` or `'Mod+K'`, and an array for an ordered sequence, such as `['G', 'H']`. Every step in a sequence uses the same grammar, including modifiers.
 
+#### Modifiers and Key Names
+
 Modifier matching is exact: `'Mod+K'` does not also match Shift-Mod-K. `Mod` resolves to Meta on Apple platforms and Control elsewhere; `modKey` provides a deterministic override when needed. Matching uses the layout-aware `KeyboardEvent.key`, so include `Shift` and the resulting character for shifted punctuation. `Space` and `Plus` name keys that would otherwise be awkward in the `+`-separated syntax.
+
+#### Typing and Repeated Keys
 
 By default, a binding calls `preventDefault()` and does not fire from an `input`, `textarea`, `select`, or contenteditable composed path. `whileTyping: 'Allow'` opts in bindings such as Escape that must work inside an editor. Events during IME composition and held-key repeats are ignored; a one-press binding can opt into repeats with `whenRepeated: 'Allow'`. An event that an element-level handler already canceled is also ignored, so local interactions take precedence over global bindings.
 
