@@ -259,6 +259,7 @@ export const init: Runtime.RoutingApplicationInit<
         snippetDisclosure: snippetDisclosureInit.model,
         maybeGitHubStarCount: Option.fromNullishOr(githubStarCount),
         currentYear: flags.currentYear,
+        newsletterEmail: '',
         mobileMenuDialog: Dialog.init({ id: 'mobile-menu' }),
         isMobileTableOfContentsOpen: false,
         activeSection: Option.none(),
@@ -461,6 +462,11 @@ const foldHomeOutMessage = (outMessage: Home.OutMessage) =>
       model => ({
         model,
         commands: [LoadPlayground({ exampleSlug })],
+      }),
+    UpdatedNewsletterEmail:
+      ({ value }) =>
+      model => ({
+        model: modifyFields(model, { newsletterEmail: () => value }),
       }),
   })
 
@@ -758,6 +764,10 @@ export const update = (model: Model, message: Message) =>
       model: modifyFields(model, {
         activeSection: () => Option.some(sectionId),
       }),
+    }),
+
+    UpdatedNewsletterEmail: ({ value }) => ({
+      model: modifyFields(model, { newsletterEmail: () => value }),
     }),
 
     ChangedViewportWidth: ({ isNarrow }) => ({
