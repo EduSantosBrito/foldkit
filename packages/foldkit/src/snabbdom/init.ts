@@ -442,6 +442,7 @@ export function init(
           }
         }
       }
+      data?.hook?.postdestroy?.(vnode)
     }
   }
 
