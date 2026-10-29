@@ -1,7 +1,6 @@
-import { Crypto, Effect, Schema } from 'effect'
+import { Effect, Schema } from 'effect'
+import { SecureRandom } from 'effect/crypto'
 import { Command } from 'foldkit'
-
-import { BrowserCrypto } from '@effect/platform-browser'
 
 const SaveDraftWithId = Command.define('SaveDraftWithId', {
   args: { body: Schema.String, draftId: Schema.String },
@@ -23,10 +22,10 @@ const SaveDraft = Command.define('SaveDraft', {
   messages: [Message.CompletedSaveDraft],
   execute: ({ body: _body }) =>
     Effect.gen(function* () {
-      const crypto = yield* Crypto.Crypto
-      const draftId = yield* Effect.orDie(crypto.randomUUIDv4)
+      const secureRandom = yield* SecureRandom.SecureRandom
+      const draftId = yield* secureRandom.uuidV4()
       return Message.CompletedSaveDraft({ draftId })
-    }).pipe(Effect.provide(BrowserCrypto.layer)),
+    }).pipe(Effect.provide(SecureRandom.layerWebCrypto)),
 })
 
 const saveGood = (body: string) => SaveDraft({ body })

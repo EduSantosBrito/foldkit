@@ -244,6 +244,12 @@ const wrapEffectAsStream =
  * work synchronously inside `acquire` and using `release` only for
  * self-contained teardown.
  *
+ * Acquisition inside `Effect.acquireRelease` is uninterruptible by default.
+ * If the element is removed after acquisition starts, acquisition can finish
+ * and its registered release runs. Foldkit suppresses Messages from a removed
+ * Mount. A live replacement of a replay-owned Mount waits for its previous
+ * fiber and cleanup to finish before it starts.
+ *
  * **Construct resources INSIDE the acquire body, never before it.**
  * `Effect.acquireRelease` only guarantees atomicity of "acquire body
  * completes → release is registered". If you construct a handle before

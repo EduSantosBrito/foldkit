@@ -120,19 +120,20 @@ describe('OnMount', () => {
     vi.restoreAllMocks()
   })
 
-  it('dispatches the emitted Message when the element mounts', async () => {
+  it('dispatches a synchronous Stream result during insertion', () => {
     const h = __htmlBuilder<typeof Message.MountedRoot.Type>()
     const { dispatch, dispatched } = createCapturingDispatch()
 
-    const view = () =>
-      h.div([], [h.span([h.OnMount(makeMounted(() => oneShotStream()))])])
+    const EmitMounted = Mount.defineStream('EmitMounted', {
+      messages: [Message.MountedRoot],
+      execute: () => Stream.succeed(Message.MountedRoot()),
+    })
+    const view = () => h.div([], [h.span([h.OnMount(EmitMounted())])])
     const vnode = renderView(view, dispatch)
 
     patch(toVNode(makeRootContainer()), vnode)
 
-    await vi.waitFor(() => {
-      expect(dispatched).toStrictEqual([Message.MountedRoot()])
-    })
+    expect(dispatched).toStrictEqual([Message.MountedRoot()])
   })
 
   it('does not dispatch the emitted Message when rendered with a no-op dispatch', async () => {
@@ -258,35 +259,30 @@ describe('OnMount', () => {
     let listenerDetached = false
     let externalEmit: () => void = Function.constVoid
 
+    const ListenForMountEvents = Mount.defineStream('ListenForMountEvents', {
+      messages: [Message.MountedRoot],
+      execute: () =>
+        Stream.callback<typeof Message.MountedRoot.Type>(queue =>
+          Effect.gen(function* () {
+            yield* Effect.acquireRelease(
+              Effect.sync(() => {
+                listenerAttached = true
+                externalEmit = () =>
+                  Queue.offerUnsafe(queue, Message.MountedRoot())
+              }),
+              () =>
+                Effect.sync(() => {
+                  listenerDetached = true
+                  externalEmit = Function.constVoid
+                }),
+            )
+            return yield* Effect.never
+          }),
+        ),
+    })
+
     const withChild = () =>
-      h.div(
-        [],
-        [
-          h.span([
-            h.OnMount(
-              makeMounted(() =>
-                Stream.callback<typeof Message.MountedRoot.Type>(queue =>
-                  Effect.gen(function* () {
-                    yield* Effect.acquireRelease(
-                      Effect.sync(() => {
-                        listenerAttached = true
-                        externalEmit = () =>
-                          Queue.offerUnsafe(queue, Message.MountedRoot())
-                      }),
-                      () =>
-                        Effect.sync(() => {
-                          listenerDetached = true
-                          externalEmit = Function.constVoid
-                        }),
-                    )
-                    return yield* Effect.never
-                  }),
-                ),
-              ),
-            ),
-          ]),
-        ],
-      )
+      h.div([], [h.span([h.OnMount(ListenForMountEvents())])])
     const withoutChild = () => h.div([])
 
     const mounted = patch(
@@ -294,9 +290,7 @@ describe('OnMount', () => {
       renderView(withChild, dispatch),
     )
 
-    await vi.waitFor(() => {
-      expect(listenerAttached).toBe(true)
-    })
+    expect(listenerAttached).toBe(true)
 
     externalEmit()
     externalEmit()
@@ -472,27 +466,35 @@ describe('OnMount', () => {
     const h = __htmlBuilder<typeof Message.MountedRoot.Type>()
     const { dispatch, dispatched } = createCapturingDispatch()
     const lifecycle: Array<string> = []
+    const releaseReplay = await Effect.runPromise(Queue.unbounded<void>())
 
     const makeOwnedMount = (
       owner: MountRenderOwner,
     ): MountAction<typeof Message.MountedRoot.Type> =>
-      makeMounted(() =>
-        Stream.callback<typeof Message.MountedRoot.Type>(queue =>
-          Effect.gen(function* () {
-            yield* Effect.acquireRelease(
-              Effect.sync(() => lifecycle.push(`${owner} acquired`)),
-              () =>
-                Effect.sync(() => {
-                  lifecycle.push(`${owner} released`)
-                }),
-            )
-            if (owner === 'Live') {
-              Queue.offerUnsafe(queue, Message.MountedRoot())
-            }
-            return yield* Effect.never
-          }),
-        ),
-      )
+      Mount.defineStream('AcquireOwnedMount', {
+        messages: [Message.MountedRoot],
+        execute: () =>
+          Stream.callback<typeof Message.MountedRoot.Type>(queue =>
+            Effect.gen(function* () {
+              yield* Effect.acquireRelease(
+                Effect.sync(() => lifecycle.push(`${owner} acquired`)),
+                () =>
+                  Effect.gen(function* () {
+                    if (owner === 'Replay') {
+                      yield* Queue.take(releaseReplay)
+                    }
+                    yield* Effect.sync(() => {
+                      lifecycle.push(`${owner} released`)
+                    })
+                  }),
+              )
+              if (owner === 'Live') {
+                Queue.offerUnsafe(queue, Message.MountedRoot())
+              }
+              return yield* Effect.never
+            }),
+          ),
+      })()
 
     const replayVNode = renderView(
       () => h.input([h.Value('replay'), h.OnMount(makeOwnedMount('Replay'))]),
@@ -511,6 +513,10 @@ describe('OnMount', () => {
       dispatch,
     )
     const live = patch(mounted, liveVNode)
+
+    expect(lifecycle).toEqual(['Replay acquired'])
+    expect(dispatched).toEqual([])
+    Queue.offerUnsafe(releaseReplay, undefined)
 
     await vi.waitFor(() => {
       expect(lifecycle).toEqual([
@@ -589,70 +595,130 @@ describe('OnMount', () => {
     expect(isLiveAcquired).toBe(false)
   })
 
-  it('skips release and dispatches nothing when destroy interrupts an in-flight acquire', async () => {
-    // NOTE: Locks in the v4-beta Effect.acquireRelease contract: if acquire
-    // is interrupted before completing, release is NOT called (no resource
-    // was acquired, so nothing to release). This is the correct semantic
-    // for async Mount setup. For example, a Mount that dynamically imports
-    // a library before constructing a handle: if the element unmounts
-    // during the import, there is no handle to destroy.
+  it('releases the replacement and suppresses its result when setup synchronously removes the host', async () => {
     const h = __htmlBuilder<typeof Message.MountedRoot.Type>()
     const { dispatch, dispatched } = createCapturingDispatch()
-    let cleanupCalls = 0
-    let acquireCompleted = false
-
-    let resolveAcquire: (value: void) => void = Function.constVoid
-    const acquireGate = new Promise<void>(resolve => {
-      resolveAcquire = resolve
+    let removeHost = Function.constVoid
+    let releaseCount = 0
+    const ReplayMount = Mount.defineStream('ReplayMount', {
+      messages: [Message.MountedRoot],
+      execute: () => Stream.never,
     })
-
-    const withChild = () =>
-      h.div(
-        [],
-        [
-          h.span([
-            h.OnMount(
-              makeMounted(() =>
-                Stream.callback<typeof Message.MountedRoot.Type>(queue =>
-                  Effect.gen(function* () {
-                    yield* Effect.acquireRelease(
-                      Effect.promise(() => acquireGate).pipe(
-                        Effect.map(() => {
-                          acquireCompleted = true
-                          Queue.offerUnsafe(queue, Message.MountedRoot())
-                        }),
-                      ),
-                      () =>
-                        Effect.sync(() => {
-                          cleanupCalls += 1
-                        }),
-                    )
-                    return yield* Effect.never
-                  }),
-                ),
-              ),
-            ),
-          ]),
-        ],
-      )
-    const withoutChild = () => h.div([])
-
+    const LiveMount = Mount.defineStream('LiveMount', {
+      messages: [Message.MountedRoot],
+      execute: () =>
+        Stream.callback<typeof Message.MountedRoot.Type>(queue =>
+          Effect.gen(function* () {
+            yield* Effect.acquireRelease(
+              Effect.sync(() => removeHost()),
+              () =>
+                Effect.sync(() => {
+                  releaseCount += 1
+                }),
+            )
+            Queue.offerUnsafe(queue, Message.MountedRoot())
+            return yield* Effect.never
+          }),
+        ),
+    })
+    const withMount = (mount: MountAction<typeof Message.MountedRoot.Type>) =>
+      h.div([], [h.span([h.OnMount(mount)])])
     const mounted = patch(
       toVNode(makeRootContainer()),
-      renderView(withChild, dispatch),
+      renderView(
+        () => withMount(ReplayMount()),
+        Dispatch.of(noOpDispatch),
+        'Replay',
+      ),
     )
-    patch(mounted, renderView(withoutChild, dispatch))
+    removeHost = () => {
+      patch(
+        mounted,
+        renderView(() => h.div([]), dispatch),
+      )
+    }
 
-    resolveAcquire()
-
-    await new Promise(resolve =>
-      setTimeout(resolve, WAIT_FOR_INTERRUPT_PROPAGATION_MS),
+    patch(
+      mounted,
+      renderView(() => withMount(LiveMount()), dispatch),
     )
 
-    expect(acquireCompleted).toBe(false)
-    expect(cleanupCalls).toBe(0)
-    expect(dispatched).toStrictEqual([])
+    await vi.waitFor(() => {
+      expect(releaseCount).toBe(1)
+    })
+    expect(dispatched).toEqual([])
   })
+
+  it.each([false, true])(
+    'releases only started acquisition after removal (isAcquireStarted: %s)',
+    async isAcquireStarted => {
+      const h = __htmlBuilder<typeof Message.MountedRoot.Type>()
+      const { dispatch, dispatched } = createCapturingDispatch()
+      let cleanupCalls = 0
+      let acquireCompleted = false
+      let acquireStarted = false
+      let setupStarted = false
+
+      let resolveAcquire: (value: void) => void = Function.constVoid
+      const acquireGate = new Promise<void>(resolve => {
+        resolveAcquire = resolve
+      })
+
+      const AcquireResource = Mount.defineStream('AcquireResource', {
+        messages: [Message.MountedRoot],
+        execute: () =>
+          Stream.callback<typeof Message.MountedRoot.Type>(queue =>
+            Effect.gen(function* () {
+              setupStarted = true
+              if (!isAcquireStarted) {
+                yield* Effect.promise(() => acquireGate)
+              }
+              yield* Effect.acquireRelease(
+                Effect.promise(() => {
+                  acquireStarted = true
+                  return acquireGate
+                }).pipe(
+                  Effect.map(() => {
+                    acquireCompleted = true
+                    Queue.offerUnsafe(queue, Message.MountedRoot())
+                  }),
+                ),
+                () =>
+                  Effect.sync(() => {
+                    cleanupCalls += 1
+                  }),
+              )
+              return yield* Effect.never
+            }),
+          ),
+      })
+
+      const withChild = () =>
+        h.div([], [h.span([h.OnMount(AcquireResource())])])
+      const withoutChild = () => h.div([])
+
+      const mounted = patch(
+        toVNode(makeRootContainer()),
+        renderView(withChild, dispatch),
+      )
+      await vi.waitFor(() => {
+        expect(setupStarted).toBe(true)
+        expect(acquireStarted).toBe(isAcquireStarted)
+      })
+      patch(mounted, renderView(withoutChild, dispatch))
+
+      resolveAcquire()
+
+      await new Promise(resolve =>
+        setTimeout(resolve, WAIT_FOR_INTERRUPT_PROPAGATION_MS),
+      )
+
+      expect(acquireCompleted).toBe(isAcquireStarted)
+      expect(acquireStarted).toBe(isAcquireStarted)
+      expect(cleanupCalls).toBe(isAcquireStarted ? 1 : 0)
+      expect(dispatched).toStrictEqual([])
+    },
+  )
 
   it('Mount.define wraps an Effect: dispatches the result Message and holds the scope open until destroy for acquireRelease finalizers', async () => {
     const h = __htmlBuilder<typeof Message.MountedRoot.Type>()

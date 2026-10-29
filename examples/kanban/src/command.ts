@@ -1,8 +1,9 @@
-import { Crypto, Effect, Schema } from 'effect'
+import { Effect, Schema } from 'effect'
+import { SecureRandom } from 'effect/crypto'
 import { KeyValueStore } from 'effect/persistence'
 import { Command, Dom } from 'foldkit'
 
-import { BrowserCrypto, BrowserKeyValueStore } from '@effect/platform-browser'
+import { BrowserKeyValueStore } from '@effect/platform-browser'
 
 import { ADD_CARD_INPUT_ID, STORAGE_KEY } from './constant'
 import { Column } from './domain'
@@ -14,10 +15,10 @@ export const GenerateCardId = Command.define('GenerateCardId', {
   messages: [Message.CompletedGenerateCardId],
   execute: ({ columnId, title }) =>
     Effect.gen(function* () {
-      const crypto = yield* Crypto.Crypto
-      const cardId = yield* Effect.orDie(crypto.randomUUIDv4)
+      const secureRandom = yield* SecureRandom.SecureRandom
+      const cardId = yield* secureRandom.uuidV4()
       return Message.CompletedGenerateCardId({ cardId, columnId, title })
-    }).pipe(Effect.provide(BrowserCrypto.layer)),
+    }).pipe(Effect.provide(SecureRandom.layerWebCrypto)),
 })
 
 export const SaveBoard = Command.define('SaveBoard', {

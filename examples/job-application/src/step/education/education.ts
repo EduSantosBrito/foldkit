@@ -1,10 +1,9 @@
-import { Array, Crypto, Effect, Schema } from 'effect'
+import { Array, Effect, Schema } from 'effect'
+import { SecureRandom } from 'effect/crypto'
 import { Calendar, Command, Update } from 'foldkit'
 import { type CalendarDate } from 'foldkit/calendar'
 import { defineMessageUnion } from 'foldkit/message'
 import { modifyFields } from 'foldkit/struct'
-
-import { BrowserCrypto } from '@effect/platform-browser'
 
 import * as Entry from './entry'
 
@@ -43,13 +42,10 @@ export const init = (today: CalendarDate, initialEntryId: string): Model => ({
 export const GenerateEntryId = Command.define('GenerateEntryId', {
   messages: [Message.SucceededGenerateEntryId, Message.FailedGenerateEntryId],
   execute: Effect.gen(function* () {
-    const crypto = yield* Crypto.Crypto
-    const entryId = yield* crypto.randomUUIDv4
+    const secureRandom = yield* SecureRandom.SecureRandom
+    const entryId = yield* secureRandom.uuidV4()
     return Message.SucceededGenerateEntryId({ entryId })
-  }).pipe(
-    Effect.provide(BrowserCrypto.layer),
-    Effect.catch(() => Effect.succeed(Message.FailedGenerateEntryId())),
-  ),
+  }).pipe(Effect.provide(SecureRandom.layerWebCrypto)),
 })
 
 // UPDATE

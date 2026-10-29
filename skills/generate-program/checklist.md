@@ -232,7 +232,7 @@ Alongside the greps, eyeball each file's imports. Every symbol you imported shou
 - [ ] Every Command identity defined with `Command.define` and assigned to a PascalCase constant
 - [ ] No inline `Command.define` in pipe chains. Always stored as a constant
 - [ ] Definitions colocated with the update that produces them
-- [ ] Every _fallible_ Command catches all errors: `Effect.catch(() => Effect.succeed(Message.FailedX(...)))`. Infallible Effects (`Clock.currentTimeMillis`, `Random.nextIntBetween`, `Calendar.today.local`) do NOT need catch. If the type system shows no error channel, there's nothing to catch, and no paired `Failed*` Message is needed either. UUID generation via `Crypto.Crypto` uses `Effect.orDie` instead of a `Failed*` Message; a crypto failure is a defect, not a domain error.
+- [ ] Every _fallible_ Command catches all errors: `Effect.catch(() => Effect.succeed(Message.FailedX(...)))`. Infallible Effects (`Clock.currentTimeMillis`, `Random.nextIntBetween`, `Calendar.today.local`, `SecureRandom.SecureRandom`'s `uuidV4()`) do NOT need catch. If the type system shows no error channel, there's nothing to catch, and no paired `Failed*` Message is needed either.
 - [ ] Return types inferred. No explicit `Command<typeof A>` annotations
 - [ ] Factory functions named by action: `fetchWeather`, not `fetchWeatherCommand`
 - [ ] Commands that can't meaningfully fail return `Completed*` Messages, payload-carrying ones included
@@ -299,7 +299,7 @@ Foldkit ships these; reaching past them is a finding, not a style choice.
 - [ ] Child folds include `toParentOutMessage` only when at least one child OutMessage should continue to the current Submodel's parent. Partial forwarding matches every child variant and returns `undefined` for variants that stop here. The property is omitted when every variant stops here, and no `toParentOutMessage: () => undefined` mapping appears
 - [ ] Two-or-more-step post-mutation handlers use `Update.combine(model, [...])` and `Update.refresh({ read, revalidate, write, load })` rather than hand-threaded `modifyFields` chains and conditional Command arrays. One Step is not wrapped in `Update.combine`, and an inline Step parameter is named `stepModel`
 - [ ] `Update.foldChildInit`, `Update.foldChildInits`, `Update.foldChild`, or `Update.foldChildStep` re-tag child Submodel Commands through `toParentMessage` when applicable; direct `Command.mapMessages` is reserved for lower-level helpers and route-gated initialization
-- [ ] HTTP uses `HttpClient` / `HttpClientRequest` from `effect/http`, with `Effect.provide(effect, Http.layer)` to supply the client. Not `@effect/platform` (`@effect/platform-browser` is separate and is for `BrowserKeyValueStore` / `BrowserCrypto`)
+- [ ] HTTP uses `HttpClient` / `HttpClientRequest` from `effect/http`, with `Effect.provide(effect, Http.layer)` to supply the client. Not `@effect/platform` (`@effect/platform-browser` is separate and is for `BrowserKeyValueStore`)
 - [ ] UI components are imported from `@foldkit/ui` by name (`import { Dialog, Input } from '@foldkit/ui'`). There is no `Ui` namespace on `foldkit`
 
 ## Effect-TS patterns

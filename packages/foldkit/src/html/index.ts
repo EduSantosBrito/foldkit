@@ -523,7 +523,7 @@ type OnMountLifecycle = {
 }
 
 type OnMountState = {
-  fiber: Fiber.Fiber<void>
+  fiber: Fiber.Fiber<unknown, unknown>
   lifecycle: OnMountLifecycle
   notifyEnded: () => void
   owner: MountRenderOwner
@@ -2567,7 +2567,7 @@ const attributeHandlers: AttributeHandlers = {
 
     function acquireMount(
       element: Element,
-      previousFiber?: Fiber.Fiber<void>,
+      previousFiber?: Fiber.Fiber<unknown, unknown>,
     ): void {
       const lifecycle: OnMountLifecycle = {
         isActive: true,
@@ -2584,7 +2584,11 @@ const attributeHandlers: AttributeHandlers = {
           return Effect.void
         }
         return Stream.runForEach(action.f(element, viewStateChanges), message =>
-          Effect.sync(() => mountDispatch(message)),
+          Effect.sync(() => {
+            if (lifecycle.isActive) {
+              mountDispatch(message)
+            }
+          }),
         )
       }).pipe(
         Effect.catchCause(cause =>
@@ -2593,17 +2597,20 @@ const attributeHandlers: AttributeHandlers = {
           }),
         ),
       )
-      const acquire =
+      const interruptPrevious =
         previousFiber === undefined
-          ? runMount
-          : Fiber.interrupt(previousFiber).pipe(Effect.andThen(runMount))
-      const fiber = Effect.runForkWith(capturedContext)(acquire)
-      onMountStates.set(element, {
-        fiber,
-        lifecycle,
-        notifyEnded,
-        owner: resolveMountDispatch.owner,
+          ? Effect.void
+          : Fiber.interrupt(previousFiber)
+      const acquire = Effect.withFiber(fiber => {
+        onMountStates.set(element, {
+          fiber,
+          lifecycle,
+          notifyEnded,
+          owner: resolveMountDispatch.owner,
+        })
+        return interruptPrevious.pipe(Effect.andThen(runMount))
       })
+      Effect.runForkWith(capturedContext)(acquire)
     }
   },
   OnUnmount: ({ message }, ctx: BuildContext) => {

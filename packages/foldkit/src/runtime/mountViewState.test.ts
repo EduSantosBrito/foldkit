@@ -978,6 +978,11 @@ describe('Mount view-state awareness', () => {
       await Effect.runPromise(store.jumpTo(INIT_INDEX))
       await vi.waitFor(() => {
         expect(acquisitions).toHaveLength(2)
+        expect(
+          Array.last(acquisitions).pipe(
+            Option.map(acquisition => acquisition.observedViewStates),
+          ),
+        ).toEqual(Option.some(['Paused']))
       })
       const maybeReplayAcquisition = Array.last(acquisitions)
       if (Option.isNone(maybeReplayAcquisition)) {
@@ -985,7 +990,6 @@ describe('Mount view-state awareness', () => {
       }
       const replayAcquisition = maybeReplayAcquisition.value
       expect(replayAcquisition.entityId).toBe(0)
-      expect(replayAcquisition.observedViewStates).toEqual(['Paused'])
       const replayEditor = requireElement('#editor')
 
       PubSub.publishUnsafe(subscriptionMessages, Message.ShowedEditor())
@@ -2082,12 +2086,17 @@ describe('Mount view-state awareness', () => {
   )
 
   it('patches the live view when history eviction auto-resumes', async () => {
-    const subscriptionMessages = await Effect.runPromise(
-      PubSub.unbounded<Message>(),
-    )
+    let isSubscriptionStarted = false
+    let emitSubscriptionMessage: (message: Message) => void = Function.constVoid
     const subscriptions = Subscription.make<Model, Message>()(() => ({
       testMessages: Subscription.persistentEntry(
-        Stream.fromPubSub(subscriptionMessages),
+        Stream.callback<Message>(queue =>
+          Effect.sync(() => {
+            emitSubscriptionMessage = message =>
+              Queue.offerUnsafe(queue, message)
+            isSubscriptionStarted = true
+          }),
+        ),
       ),
     }))
     const observedViewStates: globalThis.Array<Mount.ViewState> = []
@@ -2133,10 +2142,11 @@ describe('Mount view-state awareness', () => {
       await vi.waitFor(() => {
         expect(maybeStore).not.toBeNull()
         expect(observedViewStates).toEqual(['Live'])
+        expect(isSubscriptionStarted).toBe(true)
       })
       const store = requireDevToolsStore(maybeStore)
 
-      PubSub.publishUnsafe(subscriptionMessages, Message.Ticked())
+      emitSubscriptionMessage(Message.Ticked())
       await waitForBodyText('ticks:1')
       const firstTickState = await Effect.runPromise(
         SubscriptionRef.get(store.stateRef),
@@ -2148,7 +2158,7 @@ describe('Mount view-state awareness', () => {
         expect(observedViewStates).toEqual(['Live', 'Paused'])
       })
 
-      PubSub.publishUnsafe(subscriptionMessages, Message.Ticked())
+      emitSubscriptionMessage(Message.Ticked())
       await vi.waitFor(async () => {
         expect(
           Array.filter(processedTags, tag => tag === 'Ticked'),
@@ -2164,10 +2174,7 @@ describe('Mount view-state awareness', () => {
       expect(document.body.textContent).toContain('ticks:1')
 
       for (let index = 0; index < 19; index += 1) {
-        PubSub.publishUnsafe(
-          subscriptionMessages,
-          Message.CompletedMountEditor(),
-        )
+        emitSubscriptionMessage(Message.CompletedMountEditor())
       }
 
       await vi.waitFor(async () => {
